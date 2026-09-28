@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1, width=device-width" />
+
+    <link rel="stylesheet" type="text/css" href="static/css/2/global.css" />
+    <link rel="stylesheet" type="text/css" href="static/css/2/result.css" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap"
+    />
+    <style>
+      .positive {
+        color: #dc2626;
+        font-weight: 700;
+        font-size: 13px;
+      }
+      .negative {
+        color: #0d9488;
+        font-weight: 700;
+        font-size: 13px;
+      }
+      .sub-metric {
+        font-size: 11px;
+        color: #4b5563;
+        margin-top: 4px;
+        line-height: 1.3;
+      }
+      .xray-preview-container {
+        position: absolute;
+        top: calc(50% - 195px);
+        left: calc(50% - 150px);
+        width: 300px;
+        height: 390px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 5;
+      }
+      .xray-analyzed-img {
+        width: 250px;
+        height: 250px;
+        border-radius: 16px;
+        border: 3px solid rgba(32, 179, 183, 0.6);
+        box-shadow: 0 12px 28px rgba(0,0,0,0.18);
+        object-fit: cover;
+      }
+      .xray-badge {
+        margin-top: 12px;
+        padding: 5px 14px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+      }
+      .xray-badge.positive {
+        background: #fee2e2;
+        color: #b91c1c;
+        border: 1px solid #f87171;
+      }
+      .xray-badge.negative {
+        background: #ccfbf1;
+        color: #0f766e;
+        border: 1px solid #5eead4;
+      }
+      .error-card {
+        padding: 12px;
+        color: #dc2626;
+        font-size: 12px;
+        line-height: 1.35;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="result"><canvas id="nokey"></canvas>
+      <div class="mainbox">
+        <div class="ripple1"><div class="dot1"></div></div>
+        <div class="ripple2"><div class="dot2"></div></div>
+        <div class="ripple3"><div class="dot3"></div></div>
+        <div class="ripple4"><div class="dot4"></div></div>
+
+        {% if image_b64 %}
+          <div class="xray-preview-container">
+            <img class="xray-analyzed-img" src="{{ image_b64 }}" alt="Analyzed Chest X-Ray" />
+            <div class="xray-badge {% if prediction == 'TB Positive' %}positive{% else %}negative{% endif %}">
+              {{ prediction }} • {{ confidence }}
+            </div>
+          </div>
+        {% else %}
+          <img class="lungsimage-icon" alt="" src="static/img/lungsimage.svg" />
+        {% endif %}
+
+        <div class="interpretationbox">
+          <img
+            class="interpretationbox-child"
+            alt=""
+            src="static/img/vector-4.svg"
+          />
+
+          <div class="interpretation">
+            <div class="interpretation-child"></div>
+            <div class="interpretation-item"></div>
+            <div class="interpretation1">Interpretation</div>
+            <img class="frame-icon" alt="" src="static/img/frame.svg" />
+            <div class="interpretation-inner">
+              {% if prediction %}
+                <div style="padding: 10px 12px; text-align: left;">
+                  {% if prediction == "TB Positive" %}
+                    <div class="positive">Indication of TB Positive</div>
+                  {% else %}
+                    <div class="negative">Indication of TB Negative</div>
+                  {% endif %}
+                  <div class="sub-metric">Confidence: <strong>{{ confidence }}</strong></div>
+                </div>
+              {% else %}
+                <div class="error-card">{{ error_message }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="involvementbox">
+          <img
+            class="involvementbox-child"
+            alt=""
+            src="static/img/vector-6.svg"
+          />
+
+          <div class="involvement">
+            <div class="involvement-child"></div>
+            <div class="involvement-item"></div>
+            <div class="lung-involvement">
+              <p class="lung">Lung</p>
+              <p class="lung">Involvement</p>
+            </div>
+            <img class="vector-icon" alt="" src="static/img/vector.svg" />
+
+            <div class="involvement-inner">
+              {% if prediction %}
+                <div style="padding: 10px 12px; text-align: left;">
+                  {% if prediction == "TB Positive" %}
+                    <div class="positive">{{ involvement }}</div>
+                    <div class="sub-metric">Bilateral Opacities</div>
+                  {% else %}
+                    <div class="negative">{{ involvement }}</div>
+                    <div class="sub-metric">Parenchyma Clear</div>
+                  {% endif %}
+                </div>
+              {% else %}
+                <div class="error-card">{{ error_message }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="cavitybox">
+          <img class="cavitybox-child" alt="" src="static/img/vector-5.svg" />
+
+          <div class="cavity">
+            <div class="cavity-child"></div>
+            <div class="cavity-item"></div>
+            <div class="cavity1">Cavity</div>
+            <img class="frame-icon1" alt="" src="static/img/frame1.svg" />
+
+            <div class="cavity-inner">
+              {% if prediction %}
+                <div style="padding: 10px 12px; text-align: left;">
+                  {% if prediction == "TB Positive" %}
+                    <div class="positive">{{ cavity }}</div>
+                    <div class="sub-metric">Cavitation Markers</div>
+                  {% else %}
+                    <div class="negative">{{ cavity }}</div>
+                    <div class="sub-metric">Normal Density</div>
+                  {% endif %}
+                </div>
+              {% else %}
+                <div class="error-card">{{ error_message }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="zonesbox">
+          <div class="zones">
+            <div class="zones-child"></div>
+            <div class="zones-item"></div>
+            <div class="number-of-zones">Number of Zones</div>
+            <div class="zones-inner">
+              {% if prediction %}
+                <div style="padding: 12px 14px; text-align: left;">
+                  {% if prediction == "TB Positive" %}
+                    <div class="positive">{{ zones }}</div>
+                    <div class="sub-metric">Upper / Mid Lobes</div>
+                  {% else %}
+                    <div class="negative">{{ zones }}</div>
+                    <div class="sub-metric">All Zones Clear</div>
+                  {% endif %}
+                </div>
+              {% else %}
+                <div class="error-card">{{ error_message }}</div>
+              {% endif %}
+            </div>
+          </div>
+          <img class="vector-icon1" alt="" src="static/img/vector1.svg" />
+          <img class="zonesbox-child" alt="" src="static/img/vector-8.svg" />
+        </div>
+      </div>
+
+      <div class="this-ai-analysis-container">
+        <p class="this-ai-analysis">
+          This AI analysis is for informational purposes only. It is not a
+          substitute for professional medical advice, diagnosis, or treatment.
+        </p>
+        <p class="lung">
+          Always consult with a qualified healthcare provider or radiologist for
+          accurate interpretation of medical imaging results and any necessary
+          follow-up.
+        </p>
+      </div>
+
+      <div class="headtitle">
+        <h1 class="headline">
+          <p class="lung">Tuberculosis</p>
+          <p class="lung">
+            <span>Detection </span>
+            <span class="ai">AI</span>
+          </p>
+        </h1>
+        <img class="headtitle-child" alt="" src="static/img/vector-9.svg" />
+      </div>
+
+      <a href="/" class="button">
+        <div class="button-child"></div>
+        <div class="reset">RESTART</div>
+      </a>
+    </div>
+    <script src="static/js/bg.js"></script>
+  </body>
+</html>

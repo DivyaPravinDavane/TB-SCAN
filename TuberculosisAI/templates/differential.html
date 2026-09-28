@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Module 3: Multi-Task & Differential Diagnosis — TB-Scan AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/platform.css">
+</head>
+<body class="theme-dark">
+  {% include 'navbar.html' %}
+
+  <main class="main-layout">
+    <!-- PAGE TITLE BANNER -->
+    <div class="module-title-banner">
+      <div class="module-header-text">
+        <span class="module-index-badge">DL MODULE 03</span>
+        <h2>Multi-Task & Differential Diagnostic Classification Module</h2>
+        <p>Outputs predictions across specific TB radiological hallmarks and simultaneously classifies competing pulmonary diseases to prevent false-positive triaging.</p>
+      </div>
+      <div class="module-meta-tags">
+        <span class="meta-pill">Multi-Label Hallmark Head</span>
+        <span class="meta-pill">6-Way Differential Classifier</span>
+        <span class="meta-pill">DenseNet-121 Multi-Task</span>
+      </div>
+    </div>
+
+    <!-- WORKSPACE GRID -->
+    <div class="workspace-grid" style="grid-template-columns: 340px 1fr 380px;">
+      <!-- LEFT: CONTROLS & BENCHMARKS -->
+      <aside class="sidebar-panel">
+        <div class="panel-header">
+          <h3>Screening Scenarios</h3>
+          <span class="phi-badge">Multi-Label</span>
+        </div>
+
+        <div class="quick-samples-card">
+          <div class="card-label">Test Clinical Profiles:</div>
+          <div class="quick-buttons">
+            <button class="btn-sample btn-sample-pos" onclick="runDiff('tb_positive')">
+              <span class="dot-pos"></span>
+              <span>Active Cavitary TB Profile</span>
+            </button>
+            <button class="btn-sample btn-sample-neg" onclick="runDiff('tb_negative')">
+              <span class="dot-neg"></span>
+              <span>Clear Non-TB Profile</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="score-card" style="margin-top: 10px;">
+          <div class="card-label">Primary Triage Classification</div>
+          <div class="risk-badge high" id="diffPrimaryBadge">Active Pulmonary Tuberculosis</div>
+          <div class="probability-container" style="margin-top: 8px;">
+            <div class="prob-num" id="diffPrimaryProb">88.4%</div>
+            <div class="prob-label">Overall Confidence</div>
+          </div>
+        </div>
+
+        <div class="triage-status-card">
+          <div class="triage-header">
+            <span class="triage-tag">DIFFERENTIAL RATIONALE</span>
+          </div>
+          <div class="triage-action-text" id="diffRationale" style="font-size:11.5px; line-height:1.4;">
+            Apical predominance with thick-walled cavitation rules out acute viral pneumonitis and classic non-segmental lobar pneumonia.
+          </div>
+        </div>
+      </aside>
+
+      <!-- CENTER: RAW CXR & RADIOLOGICAL HALLMARKS -->
+      <main class="viewer-panel" style="height: 640px; padding: 18px; display: flex; flex-direction: column; gap: 16px;">
+        <div class="viewer-toolbar">
+          <div class="toolbar-group">
+            <span class="toolbar-title">Active Chest Radiograph & Feature Localization</span>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 280px 1fr; gap: 20px; height: 100%;">
+          <div style="background: #000; border-radius: var(--radius-md); overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-color);">
+            <img id="diffRawImg" src="/static/samples/sample_tb_positive.jpg" alt="Raw CXR" style="max-width: 100%; max-height: 520px; object-fit: contain;">
+          </div>
+
+          <!-- Multi-Label Hallmark Bars -->
+          <div style="display: flex; flex-direction: column; gap: 14px; justify-content: center;">
+            <h3 style="font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 4px;">Specific Tuberculosis Radiological Hallmarks (Multi-Label Head):</h3>
+            
+            <div id="hallmarksList" style="display: flex; flex-direction: column; gap: 12px;">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- RIGHT: 6-WAY DIFFERENTIAL DIAGNOSES -->
+      <aside class="results-panel">
+        <div class="panel-header">
+          <h3>Differential Diagnoses</h3>
+          <span class="version-tag">Multi-Class Head</span>
+        </div>
+
+        <p style="font-size: 11.5px; color: var(--text-dim); line-height: 1.4;">
+          Simultaneously evaluates competing thoracic pathologies to prevent false-positive triage misclassification:
+        </p>
+
+        <div class="findings-list" id="differentialsList" style="gap: 12px;">
+          <!-- Populated dynamically -->
+        </div>
+
+        <div style="margin-top:auto;">
+          <a href="/explainability" class="btn-primary btn-block">
+            <span>Proceed to Module 4: XAI & Localization →</span>
+          </a>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <script src="/static/js/platform.js"></script>
+  <script>
+    async function runDiff(sampleId) {
+      const formData = new FormData();
+      formData.append('sample_id', sampleId);
+      try {
+        const res = await fetch('/api/v1/dl/differential', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.status === 'success') {
+          const r = data.result;
+          document.getElementById('diffPrimaryBadge').textContent = r.primary_diagnosis;
+          document.getElementById('diffPrimaryBadge').className = 'risk-badge ' + (sampleId === 'tb_positive' ? 'high' : 'normal');
+          document.getElementById('diffPrimaryProb').textContent = r.primary_confidence;
+          document.getElementById('diffRationale').textContent = r.differential_notes;
+          document.getElementById('diffRawImg').src = sampleId === 'tb_positive' ? '/static/samples/sample_tb_positive.jpg' : '/static/samples/sample_tb_negative.jpg';
+
+          // Render Hallmarks
+          const hList = document.getElementById('hallmarksList');
+          hList.innerHTML = '';
+          r.hallmarks.forEach(h => {
+            const barColor = h.positive ? '#ef4444' : '#00e5ff';
+            const item = document.createElement('div');
+            item.style.background = 'rgba(255, 255, 255, 0.03)';
+            item.style.padding = '10px 14px';
+            item.style.borderRadius = '8px';
+            item.style.border = '1px solid var(--border-color)';
+            item.innerHTML = `
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span style="font-size:12.5px; font-weight:700; color:#fff;">${h.name}</span>
+                <span style="font-size:12px; font-weight:800; color:${barColor};">${h.score}%</span>
+              </div>
+              <div style="width:100%; height:6px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; margin-bottom:6px;">
+                <div style="width:${h.score}%; height:100%; background:${barColor}; border-radius:3px;"></div>
+              </div>
+              <div style="font-size:11px; color:#94a3b8;">${h.significance}</div>
+            `;
+            hList.appendChild(item);
+          });
+
+          // Render Differentials
+          const dList = document.getElementById('differentialsList');
+          dList.innerHTML = '';
+          r.differentials.forEach(d => {
+            const isHighlight = d.highlight;
+            const item = document.createElement('div');
+            item.className = 'finding-item';
+            if (isHighlight) {
+              item.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+              item.style.background = 'rgba(239, 68, 68, 0.08)';
+            }
+            item.innerHTML = `
+              <div class="finding-details" style="width:100%;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span class="finding-label" style="${isHighlight ? 'color:#f87171; font-weight:700;' : ''}">${d.diagnosis}</span>
+                  <span class="finding-val" style="${isHighlight ? 'color:#fca5a5; font-size:13.5px;' : ''}">${d.prob}%</span>
+                </div>
+                <div style="width:100%; height:4px; background:rgba(255,255,255,0.06); border-radius:2px; margin-top:5px; overflow:hidden;">
+                  <div style="width:${d.prob}%; height:100%; background:${isHighlight ? '#ef4444' : '#64748b'};"></div>
+                </div>
+              </div>
+            `;
+            dList.appendChild(item);
+          });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      runDiff('tb_positive');
+    });
+  </script>
+</body>
+</html>

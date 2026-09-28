@@ -1,0 +1,229 @@
+<!-- templates/navbar.html - Professional Two-Tier Clinical Header & Module Router -->
+<header class="clinical-header">
+  <!-- TIER 1: COMMAND BAR (BRAND, ENGINE TELEMETRY, OMNI-SEARCH, ALERTS, PROFILE) -->
+  <div class="header-command-bar">
+    <!-- Brand & Facility Identity -->
+    <div class="brand-cluster">
+      <a href="/" class="brand-link" title="Return to TB-Scan AI Diagnostic Workspace">
+        <div class="brand-emblem">
+          <svg viewBox="0 0 28 28" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <!-- Stylized Thorax & Lungs Cross -->
+            <path d="M14 3v22" stroke="var(--accent-cyan)" />
+            <path d="M7 6c-3 3-4 8-1 13 2 3 5 4 8 4s6-1 8-4c3-5 2-10-1-13" stroke="#38bdf8" />
+            <path d="M10 11c-2 2-2 5 0 7" stroke="var(--accent-cyan)" opacity="0.8" />
+            <path d="M18 11c2 2 2 5 0 7" stroke="var(--accent-cyan)" opacity="0.8" />
+            <circle cx="14" cy="7" r="1.5" fill="var(--accent-cyan)" />
+          </svg>
+        </div>
+        <div class="brand-typography">
+          <div class="brand-title-line">
+            <span class="brand-name">TB-SCAN</span>
+            <span class="brand-pill-ai">AI v2.4</span>
+            <span class="facility-tag">ST. JUDE PULMONARY PACS</span>
+          </div>
+          <span class="brand-tagline">Tuberculosis Detection, Differential Diagnosis & Clinical Triage System</span>
+        </div>
+      </a>
+
+      <!-- Real-Time Inference Telemetry -->
+      <div class="engine-telemetry-badge" title="TensorFlow 2.16 & Keras 3 Deep Learning Inference Pipeline">
+        <span class="telemetry-pulse-dot"></span>
+        <span class="telemetry-label">PACS Engine: <strong class="telemetry-status">ONLINE</strong></span>
+        <span class="telemetry-latency">24ms</span>
+      </div>
+    </div>
+
+    <!-- Omni-Search Bar (Study UID, Patient ID, Module) -->
+    <div class="omni-search-container">
+      <div class="omni-search-box">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input 
+          type="text" 
+          id="omniSearchInput" 
+          placeholder="Search Study UID (e.g. STU-2026), Patient ID, or DL Module..." 
+          onkeydown="if(event.key==='Enter') executeOmniSearch(this.value)"
+        />
+        <div class="search-kbd-tag">
+          <kbd>⌘</kbd><kbd>K</kbd>
+        </div>
+      </div>
+    </div>
+
+    <!-- Utilities: Triage Alerts, NTEP Export, Clinician Card -->
+    <div class="header-utility-cluster">
+      <!-- Triage Notifications Bell -->
+      <div class="triage-notif-wrapper">
+        <button class="notif-bell-btn" id="notifBell" onclick="toggleNotifDropdown()" title="High Risk Screening Triage Alerts">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span class="notif-badge-pill">2 Urgent</span>
+        </button>
+
+        <!-- Dropdown Drawer -->
+        <div class="notif-dropdown-menu" id="notifDropdown" style="display: none;">
+          <div class="notif-menu-header">
+            <div class="notif-menu-title">
+              <span class="alert-icon-dot"></span>
+              <strong>High-Risk TB Triage Alerts</strong>
+            </div>
+            <span class="badge-count">2 Unsigned</span>
+          </div>
+          <div class="notif-items-list">
+            <a href="/explainability" class="notif-menu-item unread">
+              <span class="item-priority-stripe danger"></span>
+              <div class="item-info">
+                <div class="item-header-row">
+                  <span class="item-id">Scan SCN-8B729C</span>
+                  <span class="item-risk-tag">94.3% TB POSITIVE</span>
+                </div>
+                <div class="item-summary">Apical Cavitation & active infiltrates. GeneXpert Ultra confirmation advised.</div>
+                <div class="item-meta">10m ago • Study STU-2026-2923 • Bed 4B</div>
+              </div>
+            </a>
+            <a href="/differential" class="notif-menu-item unread">
+              <span class="item-priority-stripe danger"></span>
+              <div class="item-info">
+                <div class="item-header-row">
+                  <span class="item-id">Scan SCN-781044</span>
+                  <span class="item-risk-tag">91.2% TB POSITIVE</span>
+                </div>
+                <div class="item-summary">Bilateral Upper Lobe fibro-cavitary lesion suspicion. Differential: rule out pneumonia.</div>
+                <div class="item-meta">42m ago • Study STU-2026-D41E • OPD-2</div>
+              </div>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Export NTEP CSV Button -->
+      <a href="/api/v1/scans/export-csv" class="export-report-btn" title="Download WHO/NTEP Compliant Surveillance Registry">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span>Export CSV</span>
+      </a>
+
+      <!-- Clinician Profile & Role Badge -->
+      <div class="clinician-profile-card">
+        <div class="clinician-avatar">
+          <span>SC</span>
+          <span class="avatar-status-dot"></span>
+        </div>
+        <div class="clinician-details">
+          <span class="clinician-name">Dr. Sarah Chen, MD</span>
+          <span class="clinician-role">Attending Pulmonologist</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIER 2: CLINICAL ROUTER & DEEP LEARNING MODULES RIBBON -->
+  <div class="header-router-bar">
+    <div class="router-track">
+      <!-- Primary Diagnostic Workspace -->
+      <a href="/" class="router-link {% if active_page == 'workspace' %}active{% endif %}" title="Primary CXR Classification, Grad-CAM Overlay & Physician Sign-Off">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"/>
+          <rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/>
+          <rect x="3" y="14" width="7" height="7"/>
+        </svg>
+        <span class="router-label">Diagnostic Workspace</span>
+      </a>
+
+      <div class="router-separator"></div>
+
+      <!-- Group Label -->
+      <span class="router-group-tag">DL PIPELINE MODULES:</span>
+
+      <!-- Module 1: Input QA -->
+      <a href="/input-qa" class="router-link {% if active_page == 'input_qa' %}active{% endif %}" title="Input Validation, IQA Quality Scoring & Metal Hardware Segmentation">
+        <span class="module-number">01</span>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="m9 12 2 2 4-4"/>
+        </svg>
+        <span class="router-label">Input QA & Artifacts</span>
+      </a>
+
+      <!-- Module 2: Segmentation -->
+      <a href="/segmentation" class="router-link {% if active_page == 'segmentation' %}active{% endif %}" title="U-Net Lung Field Masking & Simulated Bone Shadow Suppression">
+        <span class="module-number">02</span>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+          <path d="M2 12h20"/>
+        </svg>
+        <span class="router-label">Lung Segmentation</span>
+      </a>
+
+      <!-- Module 3: Differential -->
+      <a href="/differential" class="router-link {% if active_page == 'differential' %}active{% endif %}" title="Multi-Label TB Hallmarks (Cavitary, Infiltrates) & 6-Way Differential Classifier">
+        <span class="module-number">03</span>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="20" x2="18" y2="10"/>
+          <line x1="12" y1="20" x2="12" y2="4"/>
+          <line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+        <span class="router-label">Differential Diagnostics</span>
+      </a>
+
+      <!-- Module 4: Explainability -->
+      <a href="/explainability" class="router-link {% if active_page == 'explainability' %}active{% endif %}" title="Grad-CAM++ Pixel Attributions & YOLOv9 Lesion Bounding Boxes">
+        <span class="module-number">04</span>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M3 12h3m12 0h3M12 3v3m0 12v3"/>
+        </svg>
+        <span class="router-label">Explainable AI (XAI)</span>
+      </a>
+
+      <!-- Module 5: DOTS Tracking -->
+      <a href="/longitudinal" class="router-link {% if active_page == 'longitudinal' %}active{% endif %}" title="Siamese Difference Registration & Treatment Response Delta Map">
+        <span class="module-number">05</span>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 4 23 10 17 10"/>
+          <polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+        <span class="router-label">DOTS Treatment Tracking</span>
+      </a>
+
+      <!-- Module 6: Uncertainty -->
+      <a href="/uncertainty" class="router-link {% if active_page == 'uncertainty' %}active{% endif %}" title="Monte Carlo Dropout 15-Pass Epistemic Uncertainty & Automated Triage">
+        <span class="module-number">06</span>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <span class="router-label">Uncertainty & Triage</span>
+      </a>
+
+      <div class="router-separator"></div>
+
+      <!-- Lung Improvements & Treatment Analytics -->
+      <a href="/treatment-analytics" class="router-link {% if active_page == 'treatment_analytics' %}active{% endif %}" title="Quantitative Lung Opacity Regression, Cavity Remodeling & DOTS Analytics">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 20V10M12 20V4M6 20v-6"/>
+        </svg>
+        <span class="router-label">Treatment & Lung Analytics</span>
+      </a>
+
+      <!-- Public Health Surveillance Registry -->
+      <a href="/analytics" class="router-link {% if active_page == 'analytics' %}active{% endif %}" title="Screening Epidemiology KPIs, Model Accuracy Metrics & Historical Audit Log">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+        </svg>
+        <span class="router-label">Surveillance Registry</span>
+      </a>
+    </div>
+  </div>
+</header>

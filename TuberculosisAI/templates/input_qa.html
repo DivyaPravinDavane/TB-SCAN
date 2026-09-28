@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Module 1: Input Validation & Artifact Filtering — TB-Scan AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/platform.css">
+</head>
+<body class="theme-dark">
+  {% include 'navbar.html' %}
+
+  <main class="main-layout">
+    <!-- PAGE TITLE BANNER -->
+    <div class="module-title-banner">
+      <div class="module-header-text">
+        <span class="module-index-badge">DL MODULE 01</span>
+        <h2>Input Validation & Artifact Filtering Module</h2>
+        <p>Pre-diagnostic screening pipeline verifying radiograph modality, view projection, diagnostic quality (IQA), and foreign hardware segmentation.</p>
+      </div>
+      <div class="module-meta-tags">
+        <span class="meta-pill">MobileNetV3 / EfficientNet-B0</span>
+        <span class="meta-pill">Laplacian Variance Blur</span>
+        <span class="meta-pill">Hardware U-Net</span>
+      </div>
+    </div>
+
+    <!-- WORKSPACE GRID -->
+    <div class="workspace-grid" style="grid-template-columns: 340px 1fr 360px;">
+      <!-- LEFT: UPLOAD & CONTROLS -->
+      <aside class="sidebar-panel">
+        <div class="panel-header">
+          <h3>Ingestion & Verification</h3>
+          <span class="phi-badge">Pre-Classifier QA</span>
+        </div>
+
+        <div class="quick-samples-card">
+          <div class="card-label">Test Input Scenarios:</div>
+          <div class="quick-buttons">
+            <button class="btn-sample btn-sample-pos" onclick="runQA('tb_positive')">
+              <span class="dot-pos"></span>
+              <span>Diagnostic Quality PA CXR</span>
+            </button>
+            <button class="btn-sample btn-sample-neg" onclick="runQA('tb_negative')">
+              <span class="dot-neg"></span>
+              <span>Normal Benchmark CXR</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="upload-dropzone" onclick="document.getElementById('fileInputQA').click()">
+          <input type="file" id="fileInputQA" accept=".jpg,.jpeg,.png,.dcm" style="display:none;" onchange="handleQAFile(event)">
+          <div class="dropzone-icon">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <div class="dropzone-text">
+            <span class="dropzone-title">Upload Image for QA Check</span>
+            <span class="dropzone-sub">Verifies Modality, View & Hardware</span>
+          </div>
+        </div>
+
+        <button class="btn-primary btn-run" onclick="runCurrentQA()">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>Run Input Validation Pipeline</span>
+        </button>
+
+        <div class="triage-status-card" id="qaStatusCard">
+          <div class="triage-header">
+            <span class="triage-tag" id="qaStatusBadge">QA STATUS: READY</span>
+          </div>
+          <div class="triage-action-text" id="qaStatusText">Awaiting radiograph submission for quality check...</div>
+        </div>
+      </aside>
+
+      <!-- CENTER: DUAL VIEWPORT (RAW VS ARTIFACT SEGMENTATION) -->
+      <main class="viewer-panel" style="height: 640px;">
+        <div class="viewer-toolbar">
+          <div class="toolbar-group">
+            <span class="toolbar-title">Inspection View: Raw Radiograph vs Hardware Segmentation</span>
+          </div>
+          <div class="toolbar-group">
+            <span class="latency-pill" id="qaLatency">Latency: 0.12s</span>
+          </div>
+        </div>
+
+        <div class="viewport-canvas-container">
+          <div class="dual-viewer" style="display: grid;">
+            <div class="pane-box">
+              <div class="pane-header">Input Chest Radiograph</div>
+              <div class="pane-content">
+                <img id="qaRawImg" src="/static/samples/sample_tb_positive.jpg" alt="Raw CXR" class="dual-img">
+              </div>
+            </div>
+            <div class="pane-box">
+              <div class="pane-header">Hardware & Artifact Segmentation Map (Cyan = Isolated Metal)</div>
+              <div class="pane-content">
+                <img id="qaArtifactImg" src="/static/samples/sample_tb_positive.jpg" alt="Artifact Overlay" class="dual-img">
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- RIGHT: QUALITY & TELEMETRY BREAKDOWN -->
+      <aside class="results-panel">
+        <div class="panel-header">
+          <h3>Verification Telemetry</h3>
+          <span class="version-tag">MobileNetV3 QA</span>
+        </div>
+
+        <!-- Modality & View Card -->
+        <div class="score-card">
+          <div class="card-label">1. Modality & View Verification</div>
+          <div class="findings-list">
+            <div class="finding-item">
+              <div class="finding-details">
+                <span class="finding-label">Imaging Modality</span>
+                <span class="finding-val" id="valModality">Digital Radiograph (CXR) • 99.4%</span>
+              </div>
+            </div>
+            <div class="finding-item">
+              <div class="finding-details">
+                <span class="finding-label">Body Part / Anatomical Region</span>
+                <span class="finding-val" id="valBodyPart">Thorax / Chest • 99.1%</span>
+              </div>
+            </div>
+            <div class="finding-item">
+              <div class="finding-details">
+                <span class="finding-label">View Projection</span>
+                <span class="finding-val" id="valProjection">Posteroanterior (PA) • 97.8%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Diagnostic Quality (IQA) Card -->
+        <div class="score-card">
+          <div class="card-label">2. Diagnostic Quality Assessment (IQA)</div>
+          <div class="findings-list">
+            <div class="finding-item">
+              <div class="finding-details">
+                <span class="finding-label">Thoracic Exposure</span>
+                <span class="finding-val" id="valExposure">Optimal Exposure (96.5/100)</span>
+              </div>
+            </div>
+            <div class="finding-item">
+              <div class="finding-details">
+                <span class="finding-label">Respiratory Motion Blur</span>
+                <span class="finding-val" id="valMotion">Sharp (No Blur Detected)</span>
+              </div>
+            </div>
+            <div class="finding-item">
+              <div class="finding-details">
+                <span class="finding-label">Field of View / Clipping</span>
+                <span class="finding-val" id="valClipping">Apices & CP Recesses Preserved</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hardware Card -->
+        <div class="score-card">
+          <div class="card-label">3. Foreign Hardware Isolation</div>
+          <div class="finding-item">
+            <div class="finding-details">
+              <span class="finding-label">Artifact Status</span>
+              <span class="finding-val" id="valHardware">Hardware Isolated & Suppressed</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:auto;">
+          <a href="/segmentation" class="btn-primary btn-block">
+            <span>Proceed to Module 2: Segmentation →</span>
+          </a>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <script src="/static/js/platform.js"></script>
+  <script>
+    async function runQA(sampleId) {
+      const formData = new FormData();
+      formData.append('sample_id', sampleId);
+      try {
+        const res = await fetch('/api/v1/dl/input-qa', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.status === 'success') {
+          updateQAUI(data.result);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function handleQAFile(event) {
+      if (event.target.files && event.target.files[0]) {
+        const formData = new FormData();
+        formData.append('image', event.target.files[0]);
+        const res = await fetch('/api/v1/dl/input-qa', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.status === 'success') {
+          updateQAUI(data.result);
+        }
+      }
+    }
+
+    function runCurrentQA() {
+      runQA('tb_positive');
+    }
+
+    function updateQAUI(r) {
+      document.getElementById('qaRawImg').src = r.raw_image_url;
+      document.getElementById('qaArtifactImg').src = r.artifact_image_url;
+      document.getElementById('qaStatusBadge').textContent = r.qa_status;
+      document.getElementById('qaStatusText').textContent = r.exposure_note;
+      document.getElementById('valModality').textContent = `${r.modality} • ${r.modality_conf}%`;
+      document.getElementById('valBodyPart').textContent = `${r.body_part} • ${r.body_part_conf}%`;
+      document.getElementById('valProjection').textContent = `${r.projection} • ${r.projection_conf}%`;
+      document.getElementById('valExposure').textContent = `${r.exposure} (${r.exposure_score}/100)`;
+      document.getElementById('valMotion').textContent = `${r.motion} (${r.motion_score}/100)`;
+      document.getElementById('valClipping').textContent = r.clipping;
+      document.getElementById('valHardware').textContent = r.hardware_details;
+    }
+
+    // Auto-run on load
+    document.addEventListener('DOMContentLoaded', () => {
+      runQA('tb_positive');
+    });
+  </script>
+</body>
+</html>

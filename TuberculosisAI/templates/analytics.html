@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Public Health Analytics & Audit Registry — TB-Scan AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/platform.css">
+</head>
+<body class="theme-dark">
+  {% include 'navbar.html' %}
+
+  <main class="main-layout">
+    <div class="module-title-banner">
+      <div class="module-header-text">
+        <span class="module-index-badge">SURVEILLANCE & REGISTRY</span>
+        <h2>Public Health Screening Analytics & Audit Trail</h2>
+        <p>Real-time epidemiological monitoring compliant with National Tuberculosis Elimination Program (NTEP) and WHO Active Case Finding indicators.</p>
+      </div>
+      <div class="module-meta-tags">
+        <span class="meta-pill">NTEP Surveillance Reporting</span>
+        <span class="meta-pill">Audit Trail Registry</span>
+        <span class="meta-pill">CSV / JSON Data Ingestion</span>
+      </div>
+    </div>
+
+    <div class="analytics-layout" style="margin-top: 20px;">
+      <!-- KPI CARDS -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-title">Total Scans Screened</div>
+          <div class="kpi-val" id="kpiTotal">0</div>
+          <div class="kpi-meta">Public Health Ingestion Pipeline</div>
+        </div>
+        <div class="kpi-card kpi-danger">
+          <div class="kpi-title">Positivity Rate</div>
+          <div class="kpi-val" id="kpiPositivity">0.0%</div>
+          <div class="kpi-meta">High Risk Patients Flagged</div>
+        </div>
+        <div class="kpi-card kpi-success">
+          <div class="kpi-title">Confirmed Normal</div>
+          <div class="kpi-val" id="kpiNormal">0</div>
+          <div class="kpi-meta">Unremarkable Parenchyma</div>
+        </div>
+        <div class="kpi-card kpi-info">
+          <div class="kpi-title">Avg Inference Latency</div>
+          <div class="kpi-val" id="kpiLatency">1.24s</div>
+          <div class="kpi-meta">CNN + Grad-CAM Roundtrip</div>
+        </div>
+      </div>
+
+      <!-- AUDIT TABLE -->
+      <div class="audit-table-card">
+        <div class="table-header-bar">
+          <h3>Screening Audit Trail & Patient Registry</h3>
+          <div class="table-actions">
+            <input type="text" id="tableSearch" placeholder="Search by Study UID or ID..." oninput="filterAuditTable(this.value)">
+            <a href="/api/v1/scans/export-csv" class="btn-primary btn-sm">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download NTEP CSV
+            </a>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="audit-table">
+            <thead>
+              <tr>
+                <th>Study UID</th>
+                <th>Timestamp</th>
+                <th>Classification</th>
+                <th>Probability</th>
+                <th>Peak Region</th>
+                <th>Review Status</th>
+                <th>Physician</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="auditTableBody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/static/js/platform.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchAnalyticsMetrics();
+    });
+  </script>
+</body>
+</html>

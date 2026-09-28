@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Module 4: Explainable AI (XAI) & Lesion Localization — TB-Scan AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/platform.css">
+</head>
+<body class="theme-dark">
+  {% include 'navbar.html' %}
+
+  <main class="main-layout">
+    <!-- PAGE TITLE BANNER -->
+    <div class="module-title-banner">
+      <div class="module-header-text">
+        <span class="module-index-badge">DL MODULE 04</span>
+        <h2>Explainable AI (XAI) & Lesion Localization Module</h2>
+        <p>Eliminates black-box opacity through pixel-level Grad-CAM++ heatmaps and YOLOv9-style bounding box detection over cavitations and consolidations.</p>
+      </div>
+      <div class="module-meta-tags">
+        <span class="meta-pill">Grad-CAM++ Attribution</span>
+        <span class="meta-pill">YOLOv9 / Deformable DETR</span>
+        <span class="meta-pill">TBX11K Benchmark Localization</span>
+      </div>
+    </div>
+
+    <!-- WORKSPACE GRID -->
+    <div class="workspace-grid" style="grid-template-columns: 320px 1fr 360px;">
+      <!-- LEFT: CONTROLS -->
+      <aside class="sidebar-panel">
+        <div class="panel-header">
+          <h3>Attribution Controls</h3>
+          <span class="phi-badge">XAI Layer</span>
+        </div>
+
+        <div class="quick-samples-card">
+          <div class="card-label">Test XAI Scans:</div>
+          <div class="quick-buttons">
+            <button class="btn-sample btn-sample-pos" onclick="runXAI('tb_positive')">
+              <span class="dot-pos"></span>
+              <span>Active TB (Multi-Focal Cavitation)</span>
+            </button>
+            <button class="btn-sample btn-sample-neg" onclick="runXAI('tb_negative')">
+              <span class="dot-neg"></span>
+              <span>Normal Benchmark CXR</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 8px;">
+          <label>XAI View Mode</label>
+          <select id="xaiViewMode" onchange="switchXAIView(this.value)">
+            <option value="both" selected>Both (Grad-CAM++ & Bounding Boxes)</option>
+            <option value="bbox">Bounding Boxes Only (YOLOv9 DETR)</option>
+            <option value="gradcam">Grad-CAM++ Attribution Only</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Attribution Layer</label>
+          <input type="text" value="Penultimate Conv2D (52x52x128)" readonly>
+        </div>
+
+        <button class="btn-primary btn-run" onclick="runXAI('tb_positive')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span>Regenerate Explainability Maps</span>
+        </button>
+
+        <div class="triage-status-card">
+          <div class="triage-header">
+            <span class="triage-tag">CLINICAL AUDITABILITY</span>
+          </div>
+          <div class="triage-action-text" style="font-size:11.5px; line-height:1.4;">
+            Provides radiological explainability required for CE/FDA Class II medical software approval, enabling physicians to visually verify AI decision drivers.
+          </div>
+        </div>
+      </aside>
+
+      <!-- CENTER: INTERACTIVE XAI VIEWER -->
+      <main class="viewer-panel" style="height: 640px;">
+        <div class="viewer-toolbar">
+          <div class="toolbar-group">
+            <span class="toolbar-title">XAI Localization Canvas</span>
+          </div>
+          <div class="toolbar-group">
+            <span class="latency-pill">Latency: 0.15s</span>
+          </div>
+        </div>
+
+        <div class="viewport-canvas-container">
+          <div class="image-stage" id="xaiStage" style="width: 520px; height: 520px; position: relative;">
+            <img id="xaiBboxImg" src="/static/samples/sample_tb_positive.jpg" alt="BBox CXR" class="stage-img" style="position: absolute; top:0; left:0; width:100%; height:100%; object-fit:contain;">
+            <img id="xaiHeatImg" src="" alt="GradCAM++" class="stage-img heatmap-layer" style="position: absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; opacity: 0.55; display: none;">
+          </div>
+        </div>
+      </main>
+
+      <!-- RIGHT: DETECTED LESION BOUNDING BOX REGISTRY -->
+      <aside class="results-panel">
+        <div class="panel-header">
+          <h3>Detected Lesions (YOLOv9)</h3>
+          <span class="version-tag" id="boxCountBadge">1 Lesion</span>
+        </div>
+
+        <p style="font-size:11.5px; color:var(--text-dim); line-height:1.35;">
+          Specific radiological regions exceeding 55% activation threshold with anatomical localization:
+        </p>
+
+        <div class="findings-list" id="detectedBoxesList">
+          <!-- Populated dynamically -->
+        </div>
+
+        <div style="margin-top:auto;">
+          <a href="/longitudinal" class="btn-primary btn-block">
+            <span>Proceed to Module 5: Longitudinal DOTS Tracking →</span>
+          </a>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <script src="/static/js/platform.js"></script>
+  <script>
+    let xaiData = null;
+
+    async function runXAI(sampleId) {
+      const formData = new FormData();
+      formData.append('sample_id', sampleId);
+      try {
+        const res = await fetch('/api/v1/dl/xai-localization', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.status === 'success') {
+          xaiData = data.result;
+          document.getElementById('xaiBboxImg').src = xaiData.bbox_image_url;
+          document.getElementById('xaiHeatImg').src = xaiData.gradcam_url;
+          document.getElementById('xaiHeatImg').style.display = 'block';
+          document.getElementById('boxCountBadge').textContent = `${xaiData.boxes.length} Detected`;
+
+          // Populate Detected Boxes List
+          const list = document.getElementById('detectedBoxesList');
+          list.innerHTML = '';
+          xaiData.boxes.forEach(b => {
+            const item = document.createElement('div');
+            item.className = 'finding-item';
+            item.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+            item.style.background = 'rgba(239, 68, 68, 0.06)';
+            item.innerHTML = `
+              <div class="finding-details" style="width:100%;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-size:12.5px; font-weight:700; color:#fff;">${b.label}</span>
+                  <span style="font-size:11.5px; font-weight:800; color:#f87171;">${b.confidence}</span>
+                </div>
+                <div style="font-size:11px; color:#94a3b8; margin-top:3px;">
+                  Zone: <strong>${b.zone}</strong> • Coordinates: [${b.coordinates.xmin}, ${b.coordinates.ymin}, ${b.coordinates.xmax}, ${b.coordinates.ymax}]
+                </div>
+              </div>
+            `;
+            list.appendChild(item);
+          });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function switchXAIView(mode) {
+      if (!xaiData) return;
+      const heat = document.getElementById('xaiHeatImg');
+      const bbox = document.getElementById('xaiBboxImg');
+      if (mode === 'gradcam') {
+        heat.style.display = 'block';
+        heat.style.opacity = '0.75';
+        bbox.src = xaiData.raw_image_url;
+      } else if (mode === 'bbox') {
+        heat.style.display = 'none';
+        bbox.src = xaiData.bbox_image_url;
+      } else {
+        heat.style.display = 'block';
+        heat.style.opacity = '0.55';
+        bbox.src = xaiData.bbox_image_url;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      runXAI('tb_positive');
+    });
+  </script>
+</body>
+</html>

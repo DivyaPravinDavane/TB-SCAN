@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Module 5: Longitudinal Treatment Tracking — TB-Scan AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/platform.css">
+</head>
+<body class="theme-dark">
+  {% include 'navbar.html' %}
+
+  <main class="main-layout">
+    <!-- PAGE TITLE BANNER -->
+    <div class="module-title-banner">
+      <div class="module-header-text">
+        <span class="module-index-badge">DL MODULE 05</span>
+        <h2>Longitudinal & Temporal Tracking Module (DOTS Treatment Monitoring)</h2>
+        <p>Tracks patients undergoing Directly Observed Therapy (DOTS) over 6–9 months. Aligns pre-treatment baseline with follow-up CXRs to generate a pixel-wise Healing Delta Map.</p>
+      </div>
+      <div class="module-meta-tags">
+        <span class="meta-pill">Siamese Spatial Transformer (STN)</span>
+        <span class="meta-pill">Pixel-Wise Healing Delta Map</span>
+        <span class="meta-pill">WHO DOTS Compliance</span>
+      </div>
+    </div>
+
+    <!-- WORKSPACE GRID -->
+    <div class="workspace-grid" style="grid-template-columns: 320px 1fr 360px;">
+      <!-- LEFT: TIMELINE & CONTROLS -->
+      <aside class="sidebar-panel">
+        <div class="panel-header">
+          <h3>Therapy Timeline</h3>
+          <span class="phi-badge">DOTS Regimen</span>
+        </div>
+
+        <div class="form-group">
+          <label>Treatment Interval</label>
+          <select id="dotsInterval" onchange="runTracking()">
+            <option value="m2" selected>Baseline (Month 0) vs Intensive Phase (Month 2)</option>
+            <option value="m6">Baseline (Month 0) vs Continuation Phase (Month 6)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>First-Line Anti-TB Regimen (ATT)</label>
+          <input type="text" value="2HRZE / 4HR (Isoniazid, Rifampicin, Pyrazinamide, Ethambutol)" readonly>
+        </div>
+
+        <button class="btn-primary btn-run" onclick="runTracking()">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          <span>Align Scans & Compute Healing Delta</span>
+        </button>
+
+        <div class="triage-status-card">
+          <div class="triage-header">
+            <span class="triage-tag">COLOR KEY</span>
+          </div>
+          <div style="font-size:11.5px; display:flex; flex-direction:column; gap:6px; margin-top:4px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="width:10px; height:10px; border-radius:50%; background:#10b981; display:inline-block;"></span>
+              <span><strong>Green / Cyan:</strong> Opacity Regression (Healing)</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="width:10px; height:10px; border-radius:50%; background:#ef4444; display:inline-block;"></span>
+              <span><strong>Red / Orange:</strong> Infiltration Expansion (Failure)</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- CENTER: TRIPLE LONGITUDINAL COMPARISON -->
+      <main class="viewer-panel" style="height: 640px;">
+        <div class="viewer-toolbar">
+          <div class="toolbar-group">
+            <span class="toolbar-title">Longitudinal Tracking: Month 0 Baseline vs Month 2 Follow-Up vs Healing Delta Map</span>
+          </div>
+          <div class="toolbar-group">
+            <span class="latency-pill">Registration Latency: 0.22s</span>
+          </div>
+        </div>
+
+        <div class="viewport-canvas-container" style="padding: 16px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; width: 100%; height: 100%;">
+            <div class="pane-box">
+              <div class="pane-header">1. Baseline CXR (Month 0: Pre-Treatment)</div>
+              <div class="pane-content">
+                <img id="longBaseImg" src="/static/samples/sample_tb_positive.jpg" alt="Baseline CXR" class="dual-img">
+              </div>
+            </div>
+            <div class="pane-box">
+              <div class="pane-header">2. Follow-Up CXR (Month 2: In-Treatment)</div>
+              <div class="pane-content">
+                <img id="longFollowImg" src="/static/samples/sample_tb_negative.jpg" alt="Followup CXR" class="dual-img">
+              </div>
+            </div>
+            <div class="pane-box">
+              <div class="pane-header">3. Healing Delta Map (Spatial Transformer STN)</div>
+              <div class="pane-content">
+                <img id="longDeltaImg" src="" alt="Delta Map" class="dual-img">
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- RIGHT: CLINICAL TREATMENT RESPONSE METRICS -->
+      <aside class="results-panel">
+        <div class="panel-header">
+          <h3>Response Assessment</h3>
+          <span class="version-tag">DOTS Protocol</span>
+        </div>
+
+        <div class="score-card">
+          <div class="card-label">Therapeutic Outcome</div>
+          <div class="risk-badge normal" id="valResponseBadge">MARKED CLINICAL RESPONSE</div>
+          <div class="probability-container" style="margin-top: 8px;">
+            <div class="prob-num" id="valClearancePct" style="color: #34d399;">+64.8%</div>
+            <div class="prob-label">Lesion Opacity Clearance</div>
+          </div>
+        </div>
+
+        <div class="findings-list">
+          <div class="finding-item">
+            <div class="finding-details">
+              <span class="finding-label">Functional Aeration Gain</span>
+              <span class="finding-val" id="valAerationGain" style="color:#34d399; font-weight:700;">+25.6% Restored</span>
+            </div>
+          </div>
+          <div class="finding-item">
+            <div class="finding-details">
+              <span class="finding-label">Apical Cavity Remodeling</span>
+              <span class="finding-val" id="valCavityStatus">Wall Thinned: 19.4mm → 4.8mm (75.3% Contraction)</span>
+            </div>
+          </div>
+          <div class="finding-item">
+            <div class="finding-details">
+              <span class="finding-label">Sputum AFB Conversion</span>
+              <span class="finding-val" style="color:#38bdf8;">Week 6 (Negative Conversion Confirmed)</span>
+            </div>
+          </div>
+          <div class="finding-item">
+            <div class="finding-details">
+              <span class="finding-label">Clinical Action Recommendation</span>
+              <span class="finding-val" id="valTherapyAction" style="font-size:11.5px; color:#cbd5e1;">Continue Standard 4-Drug Regimen; Schedule Month 6 Follow-Up</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 14px; display:flex; flex-direction:column; gap:8px;">
+          <a href="/treatment-analytics" class="btn-primary btn-block" style="background:linear-gradient(135deg, #0d9488, #0284c7);">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            <span>View Full Lung Recovery Analytics →</span>
+          </a>
+          <a href="/uncertainty" class="btn-secondary btn-block">
+            <span>Proceed to Module 6: Uncertainty Estimation →</span>
+          </a>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <script src="/static/js/platform.js"></script>
+  <script>
+    async function runTracking() {
+      try {
+        const res = await fetch('/api/v1/dl/longitudinal', { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'success') {
+          const r = data.result;
+          document.getElementById('longBaseImg').src = r.baseline_url;
+          document.getElementById('longFollowImg').src = r.followup_url;
+          document.getElementById('longDeltaImg').src = r.delta_map_url;
+          document.getElementById('valResponseBadge').textContent = r.treatment_response;
+          document.getElementById('valClearancePct').textContent = r.clearance_percentage;
+          if (document.getElementById('valAerationGain')) {
+            document.getElementById('valAerationGain').textContent = r.vital_capacity_gain || '+25.6%';
+          }
+          document.getElementById('valTherapyAction').textContent = r.therapy_action;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      runTracking();
+    });
+  </script>
+</body>
+</html>

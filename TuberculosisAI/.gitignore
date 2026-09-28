@@ -1,0 +1,20 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# OS specific files
+.DS_Store
+.DS_Store?
+._*
+
+# Large weights exceeding GitHub 100MB limit (Use .keras format instead)
+*.h5
+models/*.h5

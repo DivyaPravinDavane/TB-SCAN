@@ -1,8 +1,9 @@
-tensorflow
+tensorflow-cpu
 pillow
 scipy
 numpy
 Flask
+gunicorn
 
 # Add other dependencies here
 

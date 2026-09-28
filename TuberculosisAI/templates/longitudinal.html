@@ -36,7 +36,27 @@
           <span class="phi-badge">DOTS Regimen</span>
         </div>
 
-        <div class="form-group">
+        <!-- Active Custom Scan Badge -->
+        <div id="activeScanBadgeLong"></div>
+
+        <!-- Upload Baseline & Followup Radiographs -->
+        <div class="upload-dropzone" onclick="document.getElementById('fileInputBase').click()" style="padding:10px; margin-top:8px;">
+          <input type="file" id="fileInputBase" accept=".jpg,.jpeg,.png,.dcm" style="display:none;" onchange="handleLongBaseFile(event)">
+          <div class="dropzone-text">
+            <span class="dropzone-title" style="font-size:11.5px;">Upload Baseline CXR (Month 0)</span>
+            <span class="dropzone-sub" style="font-size:9.5px;">Pre-treatment radiograph</span>
+          </div>
+        </div>
+
+        <div class="upload-dropzone" onclick="document.getElementById('fileInputFol').click()" style="padding:10px; margin-top:6px;">
+          <input type="file" id="fileInputFol" accept=".jpg,.jpeg,.png,.dcm" style="display:none;" onchange="handleLongFolFile(event)">
+          <div class="dropzone-text">
+            <span class="dropzone-title" style="font-size:11.5px;">Upload Follow-Up CXR (Month 2/6)</span>
+            <span class="dropzone-sub" style="font-size:9.5px;">Post-treatment response radiograph</span>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top:10px;">
           <label>Treatment Interval</label>
           <select id="dotsInterval" onchange="runTracking()">
             <option value="m2" selected>Baseline (Month 0) vs Intensive Phase (Month 2)</option>
@@ -164,9 +184,27 @@
 
   <script src="/static/js/platform.js"></script>
   <script>
+    let customBaseB64 = null;
+    let customFolB64 = null;
+
     async function runTracking() {
+      const formData = new FormData();
+      const intervalSelect = document.getElementById('dotsInterval');
+      if (intervalSelect) formData.append('interval', intervalSelect.value);
+
+      if (customBaseB64) {
+        formData.append('baseline_b64', customBaseB64);
+      } else {
+        const savedB64 = sessionStorage.getItem('tb_active_scan_b64');
+        if (savedB64) formData.append('baseline_b64', savedB64);
+      }
+
+      if (customFolB64) {
+        formData.append('followup_b64', customFolB64);
+      }
+
       try {
-        const res = await fetch('/api/v1/dl/longitudinal', { method: 'POST' });
+        const res = await fetch('/api/v1/dl/longitudinal', { method: 'POST', body: formData });
         const data = await res.json();
         if (data.status === 'success') {
           const r = data.result;
@@ -179,13 +217,40 @@
             document.getElementById('valAerationGain').textContent = r.vital_capacity_gain || '+25.6%';
           }
           document.getElementById('valTherapyAction').textContent = r.therapy_action;
+          syncModuleActiveScanBadge('activeScanBadgeLong', runTracking);
         }
       } catch (e) {
         console.error(e);
       }
     }
 
+    function handleLongBaseFile(event) {
+      if (event.target.files && event.target.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          customBaseB64 = e.target.result;
+          sessionStorage.setItem('tb_active_scan_b64', customBaseB64);
+          sessionStorage.setItem('tb_active_scan_name', event.target.files[0].name);
+          syncModuleActiveScanBadge('activeScanBadgeLong', runTracking);
+          runTracking();
+        };
+        reader.readAsDataURL(event.target.files[0]);
+      }
+    }
+
+    function handleLongFolFile(event) {
+      if (event.target.files && event.target.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          customFolB64 = e.target.result;
+          runTracking();
+        };
+        reader.readAsDataURL(event.target.files[0]);
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
+      syncModuleActiveScanBadge('activeScanBadgeLong', runTracking);
       runTracking();
     });
   </script>

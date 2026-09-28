@@ -36,10 +36,13 @@
           <span class="phi-badge">XAI Layer</span>
         </div>
 
+        <!-- Active Custom Scan Badge -->
+        <div id="activeScanBadgeXAI"></div>
+
         <div class="quick-samples-card">
           <div class="card-label">Test XAI Scans:</div>
           <div class="quick-buttons">
-            <button class="btn-sample btn-sample-pos" onclick="runXAI('tb_positive')">
+            <button class="btn-sample btn-sample-pos" onclick="clearUploadedScanAndReset(runXAI)">
               <span class="dot-pos"></span>
               <span>Active TB (Multi-Focal Cavitation)</span>
             </button>
@@ -47,6 +50,18 @@
               <span class="dot-neg"></span>
               <span>Normal Benchmark CXR</span>
             </button>
+          </div>
+        </div>
+
+        <!-- Upload Radiograph Dropzone -->
+        <div class="upload-dropzone" onclick="document.getElementById('fileInputXAI').click()" style="padding:14px; margin-top:10px;">
+          <input type="file" id="fileInputXAI" accept=".jpg,.jpeg,.png,.dcm" style="display:none;" onchange="handleXAIFile(event)">
+          <div class="dropzone-icon">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <div class="dropzone-text">
+            <span class="dropzone-title" style="font-size:12px;">Upload CXR for Explainability</span>
+            <span class="dropzone-sub" style="font-size:10px;">Computes Grad-CAM++ & Lesion BBoxes</span>
           </div>
         </div>
 
@@ -127,8 +142,14 @@
     let xaiData = null;
 
     async function runXAI(sampleId) {
-      const formData = new FormData();
-      formData.append('sample_id', sampleId);
+      let formData;
+      if (sampleId) {
+        formData = new FormData();
+        formData.append('sample_id', sampleId);
+      } else {
+        formData = getActiveScanFormData('tb_positive');
+      }
+
       try {
         const res = await fetch('/api/v1/dl/xai-localization', { method: 'POST', body: formData });
         const data = await res.json();
@@ -138,6 +159,7 @@
           document.getElementById('xaiHeatImg').src = xaiData.gradcam_url;
           document.getElementById('xaiHeatImg').style.display = 'block';
           document.getElementById('boxCountBadge').textContent = `${xaiData.boxes.length} Detected`;
+          syncModuleActiveScanBadge('activeScanBadgeXAI', runXAI);
 
           // Populate Detected Boxes List
           const list = document.getElementById('detectedBoxesList');
@@ -166,6 +188,22 @@
       }
     }
 
+    async function handleXAIFile(event) {
+      if (event.target.files && event.target.files[0]) {
+        const file = event.target.files[0];
+        handleModuleFileUpload(file, async (fileObj, b64) => {
+          syncModuleActiveScanBadge('activeScanBadgeXAI', runXAI);
+          const formData = new FormData();
+          formData.append('image', fileObj);
+          const res = await fetch('/api/v1/dl/xai-localization', { method: 'POST', body: formData });
+          const data = await res.json();
+          if (data.status === 'success') {
+            runXAI();
+          }
+        });
+      }
+    }
+
     function switchXAIView(mode) {
       if (!xaiData) return;
       const heat = document.getElementById('xaiHeatImg');
@@ -185,7 +223,8 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-      runXAI('tb_positive');
+      syncModuleActiveScanBadge('activeScanBadgeXAI', runXAI);
+      runXAI();
     });
   </script>
 </body>

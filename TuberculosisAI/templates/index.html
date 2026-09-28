@@ -26,6 +26,47 @@
   <main class="main-layout">
     <!-- VIEW 1: DIAGNOSTIC WORKSPACE -->
     <section id="viewDiagnostic" class="view-panel active">
+      
+      <!-- Interactive DL Pipeline Flow Banner -->
+      <div class="pipeline-flow-banner" id="pipelineFlowBanner">
+        <div class="flow-banner-left">
+          <div class="flow-status-pulse"></div>
+          <div>
+            <span class="flow-title" id="flowStatusTitle">DL Pipeline Engine: Ready for Ingestion</span>
+            <span class="flow-sub" id="flowStatusSub">Upload any chest radiograph or pick a benchmark to trigger all pipeline stages.</span>
+          </div>
+        </div>
+        <div class="flow-steps">
+          <a href="/input-qa" class="flow-step" id="stepQA" title="01. Modality, Projection & Hardware QA">
+            <span class="step-num">01</span>
+            <span class="step-name">Input QA</span>
+          </a>
+          <a href="/segmentation" class="flow-step" id="stepSeg" title="02. Lung Segmentation & Bone Suppression">
+            <span class="step-num">02</span>
+            <span class="step-name">Segmentation</span>
+          </a>
+          <a href="/differential" class="flow-step" id="stepDiff" title="03. Hallmarks & 6-Way Differential">
+            <span class="step-num">03</span>
+            <span class="step-name">Differential</span>
+          </a>
+          <a href="/explainability" class="flow-step" id="stepXAI" title="04. Grad-CAM++ & Lesion BBoxes">
+            <span class="step-num">04</span>
+            <span class="step-name">XAI Heatmap</span>
+          </a>
+          <a href="/longitudinal" class="flow-step" id="stepLong" title="05. DOTS Longitudinal Healing Delta">
+            <span class="step-num">05</span>
+            <span class="step-name">DOTS Tracking</span>
+          </a>
+          <a href="/uncertainty" class="flow-step" id="stepUnc" title="06. Monte Carlo Dropout Epistemic Variance">
+            <span class="step-num">06</span>
+            <span class="step-name">Uncertainty</span>
+          </a>
+          <a href="/treatment-analytics" class="flow-step" id="stepTreat" title="Parenchymal Recovery Trajectory">
+            <span class="step-name">📈 Lung Recovery</span>
+          </a>
+        </div>
+      </div>
+
       <div class="workspace-grid">
         
         <!-- COLUMN 1: Ingestion & Control Sidebar -->
@@ -37,6 +78,9 @@
               PHI Scrubbed
             </span>
           </div>
+
+          <!-- Active Scan Chip (when custom uploaded) -->
+          <div id="activeScanBadgeWorkspace"></div>
 
           <!-- Quick Test Benchmark Samples -->
           <div class="quick-samples-card">

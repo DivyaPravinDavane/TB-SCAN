@@ -36,10 +36,13 @@
           <span class="phi-badge">Pre-Classifier QA</span>
         </div>
 
+        <!-- Active Custom Scan Badge -->
+        <div id="activeScanBadgeQA"></div>
+
         <div class="quick-samples-card">
           <div class="card-label">Test Input Scenarios:</div>
           <div class="quick-buttons">
-            <button class="btn-sample btn-sample-pos" onclick="runQA('tb_positive')">
+            <button class="btn-sample btn-sample-pos" onclick="clearUploadedScanAndReset(runQA)">
               <span class="dot-pos"></span>
               <span>Diagnostic Quality PA CXR</span>
             </button>
@@ -183,13 +186,20 @@
   <script src="/static/js/platform.js"></script>
   <script>
     async function runQA(sampleId) {
-      const formData = new FormData();
-      formData.append('sample_id', sampleId);
+      let formData;
+      if (sampleId) {
+        formData = new FormData();
+        formData.append('sample_id', sampleId);
+      } else {
+        formData = getActiveScanFormData('tb_positive');
+      }
+
       try {
         const res = await fetch('/api/v1/dl/input-qa', { method: 'POST', body: formData });
         const data = await res.json();
         if (data.status === 'success') {
           updateQAUI(data.result);
+          syncModuleActiveScanBadge('activeScanBadgeQA', runQA);
         }
       } catch (e) {
         console.error(e);
@@ -198,18 +208,22 @@
 
     async function handleQAFile(event) {
       if (event.target.files && event.target.files[0]) {
-        const formData = new FormData();
-        formData.append('image', event.target.files[0]);
-        const res = await fetch('/api/v1/dl/input-qa', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (data.status === 'success') {
-          updateQAUI(data.result);
-        }
+        const file = event.target.files[0];
+        handleModuleFileUpload(file, async (fileObj, b64) => {
+          syncModuleActiveScanBadge('activeScanBadgeQA', runQA);
+          const formData = new FormData();
+          formData.append('image', fileObj);
+          const res = await fetch('/api/v1/dl/input-qa', { method: 'POST', body: formData });
+          const data = await res.json();
+          if (data.status === 'success') {
+            updateQAUI(data.result);
+          }
+        });
       }
     }
 
     function runCurrentQA() {
-      runQA('tb_positive');
+      runQA();
     }
 
     function updateQAUI(r) {
@@ -228,7 +242,8 @@
 
     // Auto-run on load
     document.addEventListener('DOMContentLoaded', () => {
-      runQA('tb_positive');
+      syncModuleActiveScanBadge('activeScanBadgeQA', runQA);
+      runQA();
     });
   </script>
 </body>

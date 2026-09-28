@@ -36,10 +36,13 @@
           <span class="phi-badge">MC Dropout</span>
         </div>
 
+        <!-- Active Custom Scan Badge -->
+        <div id="activeScanBadgeUnc"></div>
+
         <div class="quick-samples-card">
           <div class="card-label">Test Uncertainty Profiles:</div>
           <div class="quick-buttons">
-            <button class="btn-sample btn-sample-pos" onclick="runUncertainty('confident_tb')">
+            <button class="btn-sample btn-sample-pos" onclick="clearUploadedScanAndReset(runUncertainty)">
               <span class="dot-pos"></span>
               <span>High-Confidence Active TB</span>
             </button>
@@ -50,12 +53,24 @@
           </div>
         </div>
 
+        <!-- Upload Radiograph Dropzone -->
+        <div class="upload-dropzone" onclick="document.getElementById('fileInputUnc').click()" style="padding:14px; margin-top:10px;">
+          <input type="file" id="fileInputUnc" accept=".jpg,.jpeg,.png,.dcm" style="display:none;" onchange="handleUncFile(event)">
+          <div class="dropzone-icon">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <div class="dropzone-text">
+            <span class="dropzone-title" style="font-size:12px;">Upload CXR for Uncertainty Triage</span>
+            <span class="dropzone-sub" style="font-size:10px;">Runs 15-Pass Monte Carlo Dropout</span>
+          </div>
+        </div>
+
         <div class="form-group" style="margin-top: 10px;">
           <label>Stochastic Passes</label>
           <input type="number" id="inputPasses" value="15" min="5" max="30">
         </div>
 
-        <button class="btn-primary btn-run" onclick="runUncertainty('confident_tb')">
+        <button class="btn-primary btn-run" onclick="runUncertainty()">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <span>Run 15x Monte Carlo Passes</span>
         </button>
@@ -148,8 +163,19 @@
   <script src="/static/js/platform.js"></script>
   <script>
     async function runUncertainty(mode) {
-      const formData = new FormData();
-      formData.append('mode', mode);
+      let formData;
+      if (mode) {
+        formData = new FormData();
+        formData.append('mode', mode);
+      } else {
+        formData = getActiveScanFormData('tb_positive');
+      }
+
+      const passesInput = document.getElementById('inputPasses');
+      if (passesInput) {
+        formData.append('passes', passesInput.value || 15);
+      }
+
       try {
         const res = await fetch('/api/v1/dl/uncertainty', { method: 'POST', body: formData });
         const data = await res.json();
@@ -163,6 +189,7 @@
           document.getElementById('uncDecisionText').textContent = r.triage_decision;
           document.getElementById('valTriageRoute').textContent = r.triage_route;
           document.getElementById('valTriageRoute').style.color = r.is_high_uncertainty ? '#f87171' : '#34d399';
+          syncModuleActiveScanBadge('activeScanBadgeUnc', runUncertainty);
 
           // Render sample bars
           const container = document.getElementById('mcSampleBars');
@@ -188,9 +215,27 @@
       }
     }
 
+    async function handleUncFile(event) {
+      if (event.target.files && event.target.files[0]) {
+        const file = event.target.files[0];
+        handleModuleFileUpload(file, async (fileObj, b64) => {
+          syncModuleActiveScanBadge('activeScanBadgeUnc', runUncertainty);
+          const formData = new FormData();
+          formData.append('image', fileObj);
+          const res = await fetch('/api/v1/dl/uncertainty', { method: 'POST', body: formData });
+          const data = await res.json();
+          if (data.status === 'success') {
+            runUncertainty();
+          }
+        });
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
-      runUncertainty('confident_tb');
+      syncModuleActiveScanBadge('activeScanBadgeUnc', runUncertainty);
+      runUncertainty();
     });
   </script>
 </body>
+</html>
 </html>

@@ -329,8 +329,14 @@
   <script src="/static/js/platform.js"></script>
   <script>
     async function loadTreatmentAnalytics() {
+      const formData = new FormData();
+      const savedB64 = sessionStorage.getItem('tb_active_scan_b64');
+      if (savedB64) {
+        formData.append('baseline_b64', savedB64);
+      }
+
       try {
-        const res = await fetch('/api/v1/dl/longitudinal', { method: 'POST' });
+        const res = await fetch('/api/v1/dl/longitudinal', { method: 'POST', body: formData });
         const data = await res.json();
         if (data.status === 'success') {
           const r = data.result;

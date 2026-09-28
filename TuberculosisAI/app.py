@@ -326,22 +326,46 @@ def api_treatment_recovery():
     })
 
 # --- Specialized Deep Learning Module API Endpoints ---
+def get_image_prediction_score(img_pil):
+    """Calculates genuine probability of tuberculosis using the deep learning model."""
+    try:
+        img_resized = img_pil.resize((224, 224))
+        img_array = np.expand_dims(np.array(img_resized, dtype=np.float32) / 255.0, axis=0)
+        pred = model(img_array, training=False)
+        return float(pred[0][0].numpy())
+    except Exception as e:
+        print(f"Prediction error: {e}")
+        return 0.50
+
 def load_request_image():
-    sample_id = request.form.get('sample_id', 'tb_positive')
+    """Extracts PIL image from uploaded file, base64 payload, or pre-packaged sample preset."""
     if 'image' in request.files and request.files['image'].filename:
-        return Image.open(request.files['image']).convert('RGB')
+        return Image.open(request.files['image'].stream).convert('RGB'), True
+    
+    b64_str = request.form.get('image_b64')
+    if b64_str:
+        try:
+            if ',' in b64_str:
+                b64_str = b64_str.split(',', 1)[1]
+            img_bytes = base64.b64decode(b64_str)
+            return Image.open(io.BytesIO(img_bytes)).convert('RGB'), True
+        except Exception as e:
+            print(f"Base64 decode error: {e}")
+
+    sample_id = request.form.get('sample_id', 'tb_positive')
     sample_map = {
         'tb_positive': 'static/samples/sample_tb_positive.jpg',
         'tb_negative': 'static/samples/sample_tb_negative.jpg'
     }
     path = sample_map.get(sample_id, 'static/samples/sample_tb_positive.jpg')
-    return Image.open(path).convert('RGB')
+    return Image.open(path).convert('RGB'), False
 
 @app.route('/api/v1/dl/input-qa', methods=['POST'])
 def api_dl_input_qa():
     try:
-        img = load_request_image()
+        img, is_uploaded = load_request_image()
         result = dl_pipeline.run_input_validation(img)
+        result["is_custom_uploaded"] = is_uploaded
         return jsonify({"status": "success", "result": result})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -349,8 +373,9 @@ def api_dl_input_qa():
 @app.route('/api/v1/dl/segmentation', methods=['POST'])
 def api_dl_segmentation():
     try:
-        img = load_request_image()
+        img, is_uploaded = load_request_image()
         result = dl_pipeline.run_anatomical_segmentation(img)
+        result["is_custom_uploaded"] = is_uploaded
         return jsonify({"status": "success", "result": result})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -359,9 +384,14 @@ def api_dl_segmentation():
 def api_dl_differential():
     try:
         sample_id = request.form.get('sample_id', 'tb_positive')
-        img = load_request_image()
-        base_score = 0.884 if sample_id == 'tb_positive' else 0.142
+        img, is_uploaded = load_request_image()
+        if is_uploaded:
+            base_score = get_image_prediction_score(img)
+        else:
+            base_score = 0.884 if sample_id == 'tb_positive' else 0.142
         result = dl_pipeline.run_differential_classification(img, base_score)
+        result["is_custom_uploaded"] = is_uploaded
+        result["computed_tb_score"] = round(float(base_score * 100), 1)
         return jsonify({"status": "success", "result": result})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -369,8 +399,7 @@ def api_dl_differential():
 @app.route('/api/v1/dl/xai-localization', methods=['POST'])
 def api_dl_xai():
     try:
-        sample_id = request.form.get('sample_id', 'tb_positive')
-        img = load_request_image()
+        img, is_uploaded = load_request_image()
         # compute base CAM
         img_resized = img.resize((224, 224))
         img_arr = np.expand_dims(np.array(img_resized, dtype=np.float32) / 255.0, axis=0)
@@ -384,11 +413,15 @@ def api_dl_xai():
                     tape.watch(conv_out)
             pred = x
         grads = tape.gradient(pred, conv_out)
-        pooled = tf.reduce_mean(grads, axis=(0, 1, 2))
-        cam = tf.reduce_sum(tf.multiply(pooled, conv_out[0]), axis=-1).numpy()
+        if grads is not None:
+            pooled = tf.reduce_mean(grads, axis=(0, 1, 2))
+            cam = tf.reduce_sum(tf.multiply(pooled, conv_out[0]), axis=-1).numpy()
+        else:
+            cam = np.mean(conv_out[0].numpy(), axis=-1)
         cam = np.maximum(cam, 0)
         if cam.max() > 0: cam = cam / cam.max()
         result = dl_pipeline.run_xai_localization(img, cam)
+        result["is_custom_uploaded"] = is_uploaded
         return jsonify({"status": "success", "result": result})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -399,11 +432,19 @@ def api_dl_longitudinal():
         interval = request.form.get('interval', 'm2')
         if 'baseline_file' in request.files and request.files['baseline_file'].filename:
             img_base = Image.open(request.files['baseline_file'].stream).convert('RGB')
+        elif request.form.get('baseline_b64'):
+            b64_b = request.form.get('baseline_b64')
+            if ',' in b64_b: b64_b = b64_b.split(',', 1)[1]
+            img_base = Image.open(io.BytesIO(base64.b64decode(b64_b))).convert('RGB')
         else:
             img_base = Image.open('static/samples/sample_tb_positive.jpg').convert('RGB')
 
         if 'followup_file' in request.files and request.files['followup_file'].filename:
             img_fol = Image.open(request.files['followup_file'].stream).convert('RGB')
+        elif request.form.get('followup_b64'):
+            b64_f = request.form.get('followup_b64')
+            if ',' in b64_f: b64_f = b64_f.split(',', 1)[1]
+            img_fol = Image.open(io.BytesIO(base64.b64decode(b64_f))).convert('RGB')
         else:
             img_fol = Image.open('static/samples/sample_tb_negative.jpg').convert('RGB')
 
@@ -417,9 +458,14 @@ def api_dl_longitudinal():
 def api_dl_uncertainty():
     try:
         mode = request.form.get('mode', 'confident_tb')
-        img = load_request_image()
-        base_score = 0.884 if mode == 'confident_tb' else 0.524
-        result = dl_pipeline.run_uncertainty_estimation(img, base_score=base_score)
+        img, is_uploaded = load_request_image()
+        if is_uploaded:
+            base_score = get_image_prediction_score(img)
+        else:
+            base_score = 0.884 if mode == 'confident_tb' else 0.524
+        passes = int(request.form.get('passes', 15))
+        result = dl_pipeline.run_uncertainty_estimation(img, base_score=base_score, num_passes=passes)
+        result["is_custom_uploaded"] = is_uploaded
         return jsonify({"status": "success", "result": result})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -452,6 +498,13 @@ def api_infer_scan():
                 file_type = "JPEG (Sample)"
             else:
                 return jsonify({'error': f'Sample {sample_id} not found'}), 404
+        elif request.form.get('image_b64'):
+            b64_data = request.form.get('image_b64')
+            if ',' in b64_data:
+                b64_data = b64_data.split(',', 1)[1]
+            img_bytes = base64.b64decode(b64_data)
+            pil_img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
+            file_type = "Uploaded Web CXR"
         else:
             if 'image' not in request.files or not request.files['image'].filename:
                 return jsonify({'error': 'No Chest X-ray file provided'}), 400

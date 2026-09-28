@@ -36,10 +36,13 @@
           <span class="phi-badge">ROI Cropping</span>
         </div>
 
+        <!-- Active Custom Scan Badge -->
+        <div id="activeScanBadgeSeg"></div>
+
         <div class="quick-samples-card">
           <div class="card-label">Test Scans:</div>
           <div class="quick-buttons">
-            <button class="btn-sample btn-sample-pos" onclick="runSeg('tb_positive')">
+            <button class="btn-sample btn-sample-pos" onclick="clearUploadedScanAndReset(runSeg)">
               <span class="dot-pos"></span>
               <span>Active TB (Apical Shadows)</span>
             </button>
@@ -47,6 +50,18 @@
               <span class="dot-neg"></span>
               <span>Normal Benchmark CXR</span>
             </button>
+          </div>
+        </div>
+
+        <!-- Upload Radiograph Dropzone -->
+        <div class="upload-dropzone" onclick="document.getElementById('fileInputSeg').click()" style="padding:14px; margin-top:10px;">
+          <input type="file" id="fileInputSeg" accept=".jpg,.jpeg,.png,.dcm" style="display:none;" onchange="handleSegFile(event)">
+          <div class="dropzone-icon">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <div class="dropzone-text">
+            <span class="dropzone-title" style="font-size:12px;">Upload CXR for Segmentation</span>
+            <span class="dropzone-sub" style="font-size:10px;">Generates Lung Mask & Bone Suppression</span>
           </div>
         </div>
 
@@ -60,7 +75,7 @@
           <input type="text" value="Pix2Pix Dual-Energy Synthesis" readonly>
         </div>
 
-        <button class="btn-primary btn-run" onclick="runSeg('tb_positive')">
+        <button class="btn-primary btn-run" onclick="runSeg()">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
           <span>Extract Lung Fields & Suppress Ribs</span>
         </button>
@@ -164,8 +179,14 @@
   <script src="/static/js/platform.js"></script>
   <script>
     async function runSeg(sampleId) {
-      const formData = new FormData();
-      formData.append('sample_id', sampleId);
+      let formData;
+      if (sampleId) {
+        formData = new FormData();
+        formData.append('sample_id', sampleId);
+      } else {
+        formData = getActiveScanFormData('tb_positive');
+      }
+
       try {
         const res = await fetch('/api/v1/dl/segmentation', { method: 'POST', body: formData });
         const data = await res.json();
@@ -178,14 +199,39 @@
           document.getElementById('valLeftLung').textContent = r.left_lung_status;
           document.getElementById('valRightLung').textContent = r.right_lung_status;
           document.getElementById('valCP').textContent = r.cp_angles;
+          syncModuleActiveScanBadge('activeScanBadgeSeg', runSeg);
         }
       } catch (e) {
         console.error(e);
       }
     }
 
+    async function handleSegFile(event) {
+      if (event.target.files && event.target.files[0]) {
+        const file = event.target.files[0];
+        handleModuleFileUpload(file, async (fileObj, b64) => {
+          syncModuleActiveScanBadge('activeScanBadgeSeg', runSeg);
+          const formData = new FormData();
+          formData.append('image', fileObj);
+          const res = await fetch('/api/v1/dl/segmentation', { method: 'POST', body: formData });
+          const data = await res.json();
+          if (data.status === 'success') {
+            const r = data.result;
+            document.getElementById('segRawImg').src = r.raw_image_url;
+            document.getElementById('segMaskImg').src = r.mask_image_url;
+            document.getElementById('segBoneImg').src = r.bone_suppressed_url;
+            document.getElementById('valLungVol').textContent = r.lung_volume_ratio;
+            document.getElementById('valLeftLung').textContent = r.left_lung_status;
+            document.getElementById('valRightLung').textContent = r.right_lung_status;
+            document.getElementById('valCP').textContent = r.cp_angles;
+          }
+        });
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
-      runSeg('tb_positive');
+      syncModuleActiveScanBadge('activeScanBadgeSeg', runSeg);
+      runSeg();
     });
   </script>
 </body>

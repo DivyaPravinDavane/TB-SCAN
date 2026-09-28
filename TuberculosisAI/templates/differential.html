@@ -36,10 +36,13 @@
           <span class="phi-badge">Multi-Label</span>
         </div>
 
+        <!-- Active Custom Scan Badge -->
+        <div id="activeScanBadgeDiff"></div>
+
         <div class="quick-samples-card">
           <div class="card-label">Test Clinical Profiles:</div>
           <div class="quick-buttons">
-            <button class="btn-sample btn-sample-pos" onclick="runDiff('tb_positive')">
+            <button class="btn-sample btn-sample-pos" onclick="clearUploadedScanAndReset(runDiff)">
               <span class="dot-pos"></span>
               <span>Active Cavitary TB Profile</span>
             </button>
@@ -47,6 +50,18 @@
               <span class="dot-neg"></span>
               <span>Clear Non-TB Profile</span>
             </button>
+          </div>
+        </div>
+
+        <!-- Upload Radiograph Dropzone -->
+        <div class="upload-dropzone" onclick="document.getElementById('fileInputDiff').click()" style="padding:14px; margin-top:10px;">
+          <input type="file" id="fileInputDiff" accept=".jpg,.jpeg,.png,.dcm" style="display:none;" onchange="handleDiffFile(event)">
+          <div class="dropzone-icon">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <div class="dropzone-text">
+            <span class="dropzone-title" style="font-size:12px;">Upload CXR for Differential</span>
+            <span class="dropzone-sub" style="font-size:10px;">Predicts Cavitation, Infiltrates & 6 Diseases</span>
           </div>
         </div>
 
@@ -120,18 +135,25 @@
   <script src="/static/js/platform.js"></script>
   <script>
     async function runDiff(sampleId) {
-      const formData = new FormData();
-      formData.append('sample_id', sampleId);
+      let formData;
+      if (sampleId) {
+        formData = new FormData();
+        formData.append('sample_id', sampleId);
+      } else {
+        formData = getActiveScanFormData('tb_positive');
+      }
+
       try {
         const res = await fetch('/api/v1/dl/differential', { method: 'POST', body: formData });
         const data = await res.json();
         if (data.status === 'success') {
           const r = data.result;
           document.getElementById('diffPrimaryBadge').textContent = r.primary_diagnosis;
-          document.getElementById('diffPrimaryBadge').className = 'risk-badge ' + (sampleId === 'tb_positive' ? 'high' : 'normal');
+          document.getElementById('diffPrimaryBadge').className = 'risk-badge ' + (r.hallmarks[0].positive ? 'high' : 'normal');
           document.getElementById('diffPrimaryProb').textContent = r.primary_confidence;
           document.getElementById('diffRationale').textContent = r.differential_notes;
-          document.getElementById('diffRawImg').src = sampleId === 'tb_positive' ? '/static/samples/sample_tb_positive.jpg' : '/static/samples/sample_tb_negative.jpg';
+          document.getElementById('diffRawImg').src = r.raw_image_url || '/static/samples/sample_tb_positive.jpg';
+          syncModuleActiveScanBadge('activeScanBadgeDiff', runDiff);
 
           // Render Hallmarks
           const hList = document.getElementById('hallmarksList');
@@ -186,8 +208,25 @@
       }
     }
 
+    async function handleDiffFile(event) {
+      if (event.target.files && event.target.files[0]) {
+        const file = event.target.files[0];
+        handleModuleFileUpload(file, async (fileObj, b64) => {
+          syncModuleActiveScanBadge('activeScanBadgeDiff', runDiff);
+          const formData = new FormData();
+          formData.append('image', fileObj);
+          const res = await fetch('/api/v1/dl/differential', { method: 'POST', body: formData });
+          const data = await res.json();
+          if (data.status === 'success') {
+            runDiff();
+          }
+        });
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
-      runDiff('tb_positive');
+      syncModuleActiveScanBadge('activeScanBadgeDiff', runDiff);
+      runDiff();
     });
   </script>
 </body>

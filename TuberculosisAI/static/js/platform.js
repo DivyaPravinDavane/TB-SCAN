@@ -844,6 +844,9 @@ async function syncModuleActiveScanBadge(containerId, onResetCallback) {
  * Clears uploaded scan on both client and server, resetting module to default benchmark
  */
 async function clearUploadedScanAndReset(callback) {
+  appState.selectedFile = null;
+  appState.uploadedB64 = null;
+  appState.activeSampleId = null;
   sessionStorage.removeItem('tb_active_scan_b64');
   sessionStorage.removeItem('tb_active_scan_name');
   try {

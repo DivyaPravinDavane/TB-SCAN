@@ -162,6 +162,42 @@
 
   <script src="/static/js/platform.js"></script>
   <script>
+    function renderUncertaintyUI(r) {
+      if (!r) return;
+      // UPDATE THE IMAGE to the actual processed radiograph
+      if (r.raw_image_url) {
+        document.getElementById('uncRawImg').src = r.raw_image_url;
+      }
+      document.getElementById('valVariance').textContent = r.variance;
+      document.getElementById('valStdDev').textContent = `± ${r.std_dev}`;
+      document.getElementById('valCI').textContent = `[${r.ci_lower}%, ${r.ci_upper}%]`;
+      document.getElementById('valMeanLabel').textContent = `${r.mean_score}%`;
+      document.getElementById('uncDecisionBadge').textContent = r.triage_route;
+      document.getElementById('uncDecisionText').textContent = r.triage_decision;
+      document.getElementById('valTriageRoute').textContent = r.triage_route;
+      document.getElementById('valTriageRoute').style.color = r.is_high_uncertainty ? '#f87171' : '#34d399';
+      syncModuleActiveScanBadge('activeScanBadgeUnc', runUncertainty);
+
+      // Render sample bars
+      const container = document.getElementById('mcSampleBars');
+      container.innerHTML = '';
+      (r.distribution_samples || []).forEach((val, idx) => {
+        const bar = document.createElement('div');
+        bar.style.display = 'flex';
+        bar.style.alignItems = 'center';
+        bar.style.gap = '8px';
+        bar.style.fontSize = '11px';
+        bar.innerHTML = `
+          <span style="width:50px; color:#64748b; font-family:var(--font-mono);">Pass #${idx+1}</span>
+          <div style="flex:1; height:6px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden;">
+            <div style="width:${val}%; height:100%; background:linear-gradient(to right, #00e5ff, #ef4444); border-radius:3px;"></div>
+          </div>
+          <span style="width:40px; color:#fff; font-family:var(--font-mono); font-weight:700;">${val}%</span>
+        `;
+        container.appendChild(bar);
+      });
+    }
+
     async function runUncertainty(mode) {
       let formData;
       if (mode) {
@@ -180,35 +216,7 @@
         const res = await fetch('/api/v1/dl/uncertainty', { method: 'POST', body: formData });
         const data = await res.json();
         if (data.status === 'success') {
-          const r = data.result;
-          document.getElementById('valVariance').textContent = r.variance;
-          document.getElementById('valStdDev').textContent = `± ${r.std_dev}`;
-          document.getElementById('valCI').textContent = `[${r.ci_lower}%, ${r.ci_upper}%]`;
-          document.getElementById('valMeanLabel').textContent = `${r.mean_score}%`;
-          document.getElementById('uncDecisionBadge').textContent = r.triage_route;
-          document.getElementById('uncDecisionText').textContent = r.triage_decision;
-          document.getElementById('valTriageRoute').textContent = r.triage_route;
-          document.getElementById('valTriageRoute').style.color = r.is_high_uncertainty ? '#f87171' : '#34d399';
-          syncModuleActiveScanBadge('activeScanBadgeUnc', runUncertainty);
-
-          // Render sample bars
-          const container = document.getElementById('mcSampleBars');
-          container.innerHTML = '';
-          r.distribution_samples.forEach((val, idx) => {
-            const bar = document.createElement('div');
-            bar.style.display = 'flex';
-            bar.style.alignItems = 'center';
-            bar.style.gap = '8px';
-            bar.style.fontSize = '11px';
-            bar.innerHTML = `
-              <span style="width:50px; color:#64748b; font-family:var(--font-mono);">Pass #${idx+1}</span>
-              <div style="flex:1; height:6px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden;">
-                <div style="width:${val}%; height:100%; background:linear-gradient(to right, #00e5ff, #ef4444); border-radius:3px;"></div>
-              </div>
-              <span style="width:40px; color:#fff; font-family:var(--font-mono); font-weight:700;">${val}%</span>
-            `;
-            container.appendChild(bar);
-          });
+          renderUncertaintyUI(data.result);
         }
       } catch (e) {
         console.error(e);
@@ -219,6 +227,8 @@
       if (event.target.files && event.target.files.length > 0) {
         const file = event.target.files[0];
         handleModuleFileUpload(file, async (fileObj, b64) => {
+          // Show instant preview of uploaded image
+          document.getElementById('uncRawImg').src = b64;
           const formData = new FormData();
           formData.append('image', fileObj);
           formData.append('image_b64', b64);
@@ -226,7 +236,7 @@
           const res = await fetch('/api/v1/dl/uncertainty', { method: 'POST', body: formData });
           const data = await res.json();
           if (data.status === 'success') {
-            runUncertainty();
+            renderUncertaintyUI(data.result);
           }
         });
         setTimeout(() => {
@@ -241,5 +251,4 @@
     });
   </script>
 </body>
-</html>
 </html>

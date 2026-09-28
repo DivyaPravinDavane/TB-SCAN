@@ -191,8 +191,8 @@
     async function handleXAIFile(event) {
       if (event.target.files && event.target.files[0]) {
         const file = event.target.files[0];
+        event.target.value = '';
         handleModuleFileUpload(file, async (fileObj, b64) => {
-          syncModuleActiveScanBadge('activeScanBadgeXAI', runXAI);
           const formData = new FormData();
           formData.append('image', fileObj);
           const res = await fetch('/api/v1/dl/xai-localization', { method: 'POST', body: formData });

@@ -108,7 +108,9 @@ function setupDragAndDrop() {
 
 function handleFileSelected(event) {
   if (event.target.files && event.target.files[0]) {
-    handleFile(event.target.files[0]);
+    const file = event.target.files[0];
+    event.target.value = '';
+    handleFile(file);
   }
 }
 
@@ -120,8 +122,12 @@ function handleFile(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
     const b64 = e.target.result;
-    sessionStorage.setItem('tb_active_scan_b64', b64);
-    sessionStorage.setItem('tb_active_scan_name', file.name);
+    try {
+      sessionStorage.setItem('tb_active_scan_b64', b64);
+      sessionStorage.setItem('tb_active_scan_name', file.name);
+    } catch (quotaErr) {
+      console.warn("SessionStorage quota reached:", quotaErr);
+    }
 
     if (document.getElementById('baseImage')) document.getElementById('baseImage').src = b64;
     if (document.getElementById('dualRawImage')) document.getElementById('dualRawImage').src = b64;
@@ -144,9 +150,11 @@ function handleFile(file) {
 function loadBenchmarkSample(sampleId) {
   appState.activeSampleId = sampleId;
   appState.selectedFile = null;
-  // Clear custom uploaded scan from session storage when deliberately switching to benchmark
+  // Clear custom uploaded scan from session storage and server when deliberately switching to benchmark
   sessionStorage.removeItem('tb_active_scan_b64');
   sessionStorage.removeItem('tb_active_scan_name');
+  try { fetch('/api/v1/scans/reset-active', { method: 'POST' }); } catch (e) {}
+  syncModuleActiveScanBadge('activeScanBadgeWorkspace', loadBenchmarkSample);
 
   const samplePath = sampleId === 'tb_positive'
     ? '/static/samples/sample_tb_positive.jpg'
@@ -673,14 +681,14 @@ document.addEventListener('click', (e) => {
  */
 
 /**
- * Creates FormData containing either active user uploaded scan (via image_b64) or fallback sample_id
+ * Creates FormData containing user uploaded scan (via image_b64) or falls back to server active image
  */
-function getActiveScanFormData(fallbackSampleId = 'tb_positive') {
+function getActiveScanFormData(fallbackSampleId = null) {
   const formData = new FormData();
   const savedB64 = sessionStorage.getItem('tb_active_scan_b64');
   if (savedB64) {
     formData.append('image_b64', savedB64);
-  } else {
+  } else if (fallbackSampleId) {
     formData.append('sample_id', fallbackSampleId);
   }
   return formData;
@@ -694,8 +702,12 @@ function handleModuleFileUpload(file, onLoadedCallback) {
   const reader = new FileReader();
   reader.onload = (e) => {
     const b64 = e.target.result;
-    sessionStorage.setItem('tb_active_scan_b64', b64);
-    sessionStorage.setItem('tb_active_scan_name', file.name);
+    try {
+      sessionStorage.setItem('tb_active_scan_b64', b64);
+      sessionStorage.setItem('tb_active_scan_name', file.name);
+    } catch (quotaErr) {
+      console.warn("SessionStorage limit reached, falling back to server active cache:", quotaErr);
+    }
     if (typeof onLoadedCallback === 'function') {
       onLoadedCallback(file, b64);
     }
@@ -704,12 +716,26 @@ function handleModuleFileUpload(file, onLoadedCallback) {
 }
 
 /**
- * Synchronizes the active scan badge in module sidebars
+ * Synchronizes the active scan badge across module sidebars with server state
  */
-function syncModuleActiveScanBadge(containerId, onResetCallback) {
+async function syncModuleActiveScanBadge(containerId, onResetCallback) {
   const container = document.getElementById(containerId);
   if (!container) return;
-  const savedName = sessionStorage.getItem('tb_active_scan_name');
+  let savedName = sessionStorage.getItem('tb_active_scan_name');
+  
+  if (!savedName) {
+    try {
+      const res = await fetch('/api/v1/scans/active-status');
+      const data = await res.json();
+      if (data.status === 'success' && data.has_active_scan) {
+        savedName = data.filename || 'Custom Ingested Radiograph';
+        try { sessionStorage.setItem('tb_active_scan_name', savedName); } catch (e) {}
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   if (savedName) {
     container.innerHTML = `
       <div class="active-scan-chip" style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:rgba(0, 229, 255, 0.09); border:1px solid rgba(0, 229, 255, 0.3); border-radius:8px; margin-bottom:12px; font-size:11.5px;">
@@ -728,11 +754,14 @@ function syncModuleActiveScanBadge(containerId, onResetCallback) {
 }
 
 /**
- * Clears uploaded scan and resets module to default benchmark
+ * Clears uploaded scan on both client and server, resetting module to default benchmark
  */
-function clearUploadedScanAndReset(callback) {
+async function clearUploadedScanAndReset(callback) {
   sessionStorage.removeItem('tb_active_scan_b64');
   sessionStorage.removeItem('tb_active_scan_name');
+  try {
+    await fetch('/api/v1/scans/reset-active', { method: 'POST' });
+  } catch (e) {}
   if (typeof callback === 'function') {
     callback('tb_positive');
   } else {

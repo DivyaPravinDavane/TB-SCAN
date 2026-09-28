@@ -226,26 +226,31 @@
 
     function handleLongBaseFile(event) {
       if (event.target.files && event.target.files[0]) {
+        const file = event.target.files[0];
+        event.target.value = '';
         const reader = new FileReader();
         reader.onload = (e) => {
           customBaseB64 = e.target.result;
-          sessionStorage.setItem('tb_active_scan_b64', customBaseB64);
-          sessionStorage.setItem('tb_active_scan_name', event.target.files[0].name);
-          syncModuleActiveScanBadge('activeScanBadgeLong', runTracking);
+          try {
+            sessionStorage.setItem('tb_active_scan_b64', customBaseB64);
+            sessionStorage.setItem('tb_active_scan_name', file.name);
+          } catch (err) {}
           runTracking();
         };
-        reader.readAsDataURL(event.target.files[0]);
+        reader.readAsDataURL(file);
       }
     }
 
     function handleLongFolFile(event) {
       if (event.target.files && event.target.files[0]) {
+        const file = event.target.files[0];
+        event.target.value = '';
         const reader = new FileReader();
         reader.onload = (e) => {
           customFolB64 = e.target.result;
           runTracking();
         };
-        reader.readAsDataURL(event.target.files[0]);
+        reader.readAsDataURL(file);
       }
     }
 

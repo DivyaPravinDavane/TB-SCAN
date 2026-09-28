@@ -209,14 +209,15 @@
     async function handleQAFile(event) {
       if (event.target.files && event.target.files[0]) {
         const file = event.target.files[0];
+        event.target.value = '';
         handleModuleFileUpload(file, async (fileObj, b64) => {
-          syncModuleActiveScanBadge('activeScanBadgeQA', runQA);
           const formData = new FormData();
           formData.append('image', fileObj);
           const res = await fetch('/api/v1/dl/input-qa', { method: 'POST', body: formData });
           const data = await res.json();
           if (data.status === 'success') {
             updateQAUI(data.result);
+            syncModuleActiveScanBadge('activeScanBadgeQA', runQA);
           }
         });
       }

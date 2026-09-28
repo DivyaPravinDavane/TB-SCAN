@@ -209,8 +209,8 @@
     async function handleSegFile(event) {
       if (event.target.files && event.target.files[0]) {
         const file = event.target.files[0];
+        event.target.value = '';
         handleModuleFileUpload(file, async (fileObj, b64) => {
-          syncModuleActiveScanBadge('activeScanBadgeSeg', runSeg);
           const formData = new FormData();
           formData.append('image', fileObj);
           const res = await fetch('/api/v1/dl/segmentation', { method: 'POST', body: formData });
@@ -224,6 +224,7 @@
             document.getElementById('valLeftLung').textContent = r.left_lung_status;
             document.getElementById('valRightLung').textContent = r.right_lung_status;
             document.getElementById('valCP').textContent = r.cp_angles;
+            syncModuleActiveScanBadge('activeScanBadgeSeg', runSeg);
           }
         });
       }

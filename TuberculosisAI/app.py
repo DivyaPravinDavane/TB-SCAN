@@ -325,6 +325,60 @@ def api_treatment_recovery():
         }
     })
 
+# --- Active Ingested Scan State Management ---
+UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+ACTIVE_IMAGE_PATH = os.path.join(UPLOAD_FOLDER, 'active_scan.jpg')
+
+ACTIVE_SCAN_LOCK = threading.Lock()
+ACTIVE_SCAN_STATE = {
+    "image": None,
+    "filename": None,
+    "timestamp": None,
+    "has_custom": False
+}
+
+def save_active_scan(img, filename="uploaded_scan.jpg"):
+    with ACTIVE_SCAN_LOCK:
+        ACTIVE_SCAN_STATE["image"] = img.copy()
+        ACTIVE_SCAN_STATE["filename"] = filename
+        ACTIVE_SCAN_STATE["timestamp"] = int(time.time() * 1000)
+        ACTIVE_SCAN_STATE["has_custom"] = True
+        try:
+            img.save(ACTIVE_IMAGE_PATH, format="JPEG", quality=95)
+        except Exception as e:
+            print(f"Error saving active image to disk: {e}")
+
+def clear_active_scan():
+    with ACTIVE_SCAN_LOCK:
+        ACTIVE_SCAN_STATE["image"] = None
+        ACTIVE_SCAN_STATE["filename"] = None
+        ACTIVE_SCAN_STATE["timestamp"] = None
+        ACTIVE_SCAN_STATE["has_custom"] = False
+        if os.path.exists(ACTIVE_IMAGE_PATH):
+            try:
+                os.remove(ACTIVE_IMAGE_PATH)
+            except Exception:
+                pass
+
+@app.route('/api/v1/scans/active-status', methods=['GET'])
+def api_active_status():
+    with ACTIVE_SCAN_LOCK:
+        has_custom = ACTIVE_SCAN_STATE["has_custom"]
+        filename = ACTIVE_SCAN_STATE["filename"]
+        ts = ACTIVE_SCAN_STATE["timestamp"] or 0
+    return jsonify({
+        "status": "success",
+        "has_active_scan": has_custom,
+        "filename": filename,
+        "image_url": f"/static/uploads/active_scan.jpg?t={ts}" if has_custom else None
+    })
+
+@app.route('/api/v1/scans/reset-active', methods=['POST'])
+def api_reset_active():
+    clear_active_scan()
+    return jsonify({"status": "success", "message": "Active scan reset to benchmark"})
+
 # --- Specialized Deep Learning Module API Endpoints ---
 def get_image_prediction_score(img_pil):
     """Calculates genuine probability of tuberculosis using the deep learning model."""
@@ -338,27 +392,51 @@ def get_image_prediction_score(img_pil):
         return 0.50
 
 def load_request_image():
-    """Extracts PIL image from uploaded file, base64 payload, or pre-packaged sample preset."""
+    """Extracts PIL image from uploaded file, base64 payload, active custom scan, or pre-packaged sample preset."""
+    # 1. Direct file upload in request
     if 'image' in request.files and request.files['image'].filename:
-        return Image.open(request.files['image'].stream).convert('RGB'), True
+        file_obj = request.files['image']
+        img = Image.open(file_obj.stream).convert('RGB')
+        save_active_scan(img, file_obj.filename)
+        return img, True
     
+    # 2. Base64 payload in request
     b64_str = request.form.get('image_b64')
     if b64_str:
         try:
             if ',' in b64_str:
                 b64_str = b64_str.split(',', 1)[1]
             img_bytes = base64.b64decode(b64_str)
-            return Image.open(io.BytesIO(img_bytes)).convert('RGB'), True
+            img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
+            name = request.form.get('filename', 'uploaded_scan.jpg')
+            save_active_scan(img, name)
+            return img, True
         except Exception as e:
             print(f"Base64 decode error: {e}")
 
-    sample_id = request.form.get('sample_id', 'tb_positive')
-    sample_map = {
-        'tb_positive': 'static/samples/sample_tb_positive.jpg',
-        'tb_negative': 'static/samples/sample_tb_negative.jpg'
-    }
-    path = sample_map.get(sample_id, 'static/samples/sample_tb_positive.jpg')
-    return Image.open(path).convert('RGB'), False
+    # 3. Explicit clinical sample selection
+    sample_id = request.form.get('sample_id')
+    if sample_id in ('tb_positive', 'tb_negative'):
+        sample_map = {
+            'tb_positive': 'static/samples/sample_tb_positive.jpg',
+            'tb_negative': 'static/samples/sample_tb_negative.jpg'
+        }
+        path = sample_map[sample_id]
+        return Image.open(path).convert('RGB'), False
+
+    # 4. Use active uploaded scan from server state if present
+    with ACTIVE_SCAN_LOCK:
+        if ACTIVE_SCAN_STATE["has_custom"] and ACTIVE_SCAN_STATE["image"] is not None:
+            return ACTIVE_SCAN_STATE["image"].copy(), True
+    if os.path.exists(ACTIVE_IMAGE_PATH):
+        try:
+            img = Image.open(ACTIVE_IMAGE_PATH).convert('RGB')
+            return img, True
+        except Exception:
+            pass
+
+    # 5. Default fallback to benchmark positive
+    return Image.open('static/samples/sample_tb_positive.jpg').convert('RGB'), False
 
 @app.route('/api/v1/dl/input-qa', methods=['POST'])
 def api_dl_input_qa():
@@ -496,6 +574,7 @@ def api_infer_scan():
             if os.path.exists(sample_path):
                 pil_img = Image.open(sample_path).convert('RGB')
                 file_type = "JPEG (Sample)"
+                clear_active_scan()
             else:
                 return jsonify({'error': f'Sample {sample_id} not found'}), 404
         elif request.form.get('image_b64'):
@@ -505,6 +584,7 @@ def api_infer_scan():
             img_bytes = base64.b64decode(b64_data)
             pil_img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
             file_type = "Uploaded Web CXR"
+            save_active_scan(pil_img, "uploaded_scan.jpg")
         else:
             if 'image' not in request.files or not request.files['image'].filename:
                 return jsonify({'error': 'No Chest X-ray file provided'}), 400
@@ -512,6 +592,7 @@ def api_infer_scan():
             filename = file_obj.filename.lower()
             file_type = "PNG" if filename.endswith('.png') else "DICOM" if filename.endswith('.dcm') else "JPEG"
             pil_img = Image.open(file_obj).convert('RGB')
+            save_active_scan(pil_img, file_obj.filename)
 
         # Convert original image to base64 for viewer
         buf_orig = io.BytesIO()

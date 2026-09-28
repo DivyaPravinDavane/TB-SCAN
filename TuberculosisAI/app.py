@@ -364,6 +364,14 @@ def clear_active_scan():
 @app.route('/api/v1/scans/active-status', methods=['GET'])
 def api_active_status():
     with ACTIVE_SCAN_LOCK:
+        if not ACTIVE_SCAN_STATE["has_custom"] and os.path.exists(ACTIVE_IMAGE_PATH):
+            try:
+                ACTIVE_SCAN_STATE["image"] = Image.open(ACTIVE_IMAGE_PATH).convert('RGB')
+                ACTIVE_SCAN_STATE["has_custom"] = True
+                ACTIVE_SCAN_STATE["filename"] = ACTIVE_SCAN_STATE["filename"] or "active_scan.jpg"
+                ACTIVE_SCAN_STATE["timestamp"] = int(time.time() * 1000)
+            except Exception:
+                pass
         has_custom = ACTIVE_SCAN_STATE["has_custom"]
         filename = ACTIVE_SCAN_STATE["filename"]
         ts = ACTIVE_SCAN_STATE["timestamp"] or 0
@@ -396,9 +404,13 @@ def load_request_image():
     # 1. Direct file upload in request
     if 'image' in request.files and request.files['image'].filename:
         file_obj = request.files['image']
-        img = Image.open(file_obj.stream).convert('RGB')
-        save_active_scan(img, file_obj.filename)
-        return img, True
+        try:
+            img = Image.open(file_obj.stream).convert('RGB')
+            fname = file_obj.filename
+            save_active_scan(img, fname)
+            return img, True
+        except Exception as e:
+            print(f"Error opening uploaded file: {e}")
     
     # 2. Base64 payload in request
     b64_str = request.form.get('image_b64')
@@ -408,7 +420,7 @@ def load_request_image():
                 b64_str = b64_str.split(',', 1)[1]
             img_bytes = base64.b64decode(b64_str)
             img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
-            name = request.form.get('filename', 'uploaded_scan.jpg')
+            name = request.form.get('filename') or request.form.get('image_name') or 'uploaded_scan.jpg'
             save_active_scan(img, name)
             return img, True
         except Exception as e:
@@ -422,6 +434,7 @@ def load_request_image():
             'tb_negative': 'static/samples/sample_tb_negative.jpg'
         }
         path = sample_map[sample_id]
+        clear_active_scan()
         return Image.open(path).convert('RGB'), False
 
     # 4. Use active uploaded scan from server state if present
@@ -431,6 +444,11 @@ def load_request_image():
     if os.path.exists(ACTIVE_IMAGE_PATH):
         try:
             img = Image.open(ACTIVE_IMAGE_PATH).convert('RGB')
+            with ACTIVE_SCAN_LOCK:
+                ACTIVE_SCAN_STATE["image"] = img.copy()
+                ACTIVE_SCAN_STATE["has_custom"] = True
+                if not ACTIVE_SCAN_STATE["filename"]:
+                    ACTIVE_SCAN_STATE["filename"] = "active_scan.jpg"
             return img, True
         except Exception:
             pass
@@ -461,7 +479,9 @@ def api_dl_segmentation():
 @app.route('/api/v1/dl/differential', methods=['POST'])
 def api_dl_differential():
     try:
-        sample_id = request.form.get('sample_id', 'tb_positive')
+        sample_id = request.form.get('sample_id')
+        if sample_id in ('tb_positive', 'tb_negative'):
+            clear_active_scan()
         img, is_uploaded = load_request_image()
         if is_uploaded:
             base_score = get_image_prediction_score(img)
@@ -470,6 +490,7 @@ def api_dl_differential():
         result = dl_pipeline.run_differential_classification(img, base_score)
         result["is_custom_uploaded"] = is_uploaded
         result["computed_tb_score"] = round(float(base_score * 100), 1)
+        result["raw_image_url"] = dl_pipeline.to_base64(img)
         return jsonify({"status": "success", "result": result})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -535,7 +556,9 @@ def api_dl_longitudinal():
 @app.route('/api/v1/dl/uncertainty', methods=['POST'])
 def api_dl_uncertainty():
     try:
-        mode = request.form.get('mode', 'confident_tb')
+        mode = request.form.get('mode')
+        if mode in ('confident_tb', 'equivocal_tb'):
+            clear_active_scan()
         img, is_uploaded = load_request_image()
         if is_uploaded:
             base_score = get_image_prediction_score(img)
@@ -544,6 +567,7 @@ def api_dl_uncertainty():
         passes = int(request.form.get('passes', 15))
         result = dl_pipeline.run_uncertainty_estimation(img, base_score=base_score, num_passes=passes)
         result["is_custom_uploaded"] = is_uploaded
+        result["raw_image_url"] = dl_pipeline.to_base64(img)
         return jsonify({"status": "success", "result": result})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -561,38 +585,22 @@ def api_infer_scan():
     start_time = time.time()
     try:
         sample_id = request.form.get('sample_id')
-        pil_img = None
-        file_type = "JPEG"
+        if sample_id in ('tb_positive', 'tb_negative'):
+            clear_active_scan()
 
-        if sample_id:
-            # Load pre-packaged clinical sample
-            sample_map = {
-                'tb_positive': 'static/samples/sample_tb_positive.jpg',
-                'tb_negative': 'static/samples/sample_tb_negative.jpg'
-            }
-            sample_path = sample_map.get(sample_id, 'static/samples/sample_tb_positive.jpg')
-            if os.path.exists(sample_path):
-                pil_img = Image.open(sample_path).convert('RGB')
-                file_type = "JPEG (Sample)"
-                clear_active_scan()
+        pil_img, is_uploaded = load_request_image()
+
+        # Determine clinical file format description
+        file_type = "JPEG (Clinical Benchmark)"
+        if is_uploaded:
+            with ACTIVE_SCAN_LOCK:
+                fn = (ACTIVE_SCAN_STATE.get("filename") or "").lower()
+            if fn.endswith('.png'):
+                file_type = "PNG Digital Radiograph"
+            elif fn.endswith('.dcm'):
+                file_type = "DICOM 3.0 Format"
             else:
-                return jsonify({'error': f'Sample {sample_id} not found'}), 404
-        elif request.form.get('image_b64'):
-            b64_data = request.form.get('image_b64')
-            if ',' in b64_data:
-                b64_data = b64_data.split(',', 1)[1]
-            img_bytes = base64.b64decode(b64_data)
-            pil_img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
-            file_type = "Uploaded Web CXR"
-            save_active_scan(pil_img, "uploaded_scan.jpg")
-        else:
-            if 'image' not in request.files or not request.files['image'].filename:
-                return jsonify({'error': 'No Chest X-ray file provided'}), 400
-            file_obj = request.files['image']
-            filename = file_obj.filename.lower()
-            file_type = "PNG" if filename.endswith('.png') else "DICOM" if filename.endswith('.dcm') else "JPEG"
-            pil_img = Image.open(file_obj).convert('RGB')
-            save_active_scan(pil_img, file_obj.filename)
+                file_type = "JPEG Digital Radiograph"
 
         # Convert original image to base64 for viewer
         buf_orig = io.BytesIO()

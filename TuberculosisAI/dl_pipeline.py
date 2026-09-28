@@ -256,6 +256,7 @@ def run_differential_classification(img_pil, base_tb_score=0.85):
     ]
 
     return {
+        "raw_image_url": to_base64(img_pil),
         "hallmarks": hallmarks,
         "differentials": differentials,
         "primary_diagnosis": "Active Pulmonary Tuberculosis" if base_tb_score > 0.6 else "Normal / Non-TB",
@@ -349,8 +350,10 @@ def run_longitudinal_tracking(baseline_pil, followup_pil):
     2. Healing Delta Map: Green (Cleared opacities) vs Red (Persistent/Expanded)
     3. Quantitative response percentage (Treatment Response vs Failure)
     """
+    w, h = baseline_pil.size
+    followup_resized = followup_pil.resize((w, h))
     base_arr = np.array(baseline_pil.convert('L'), dtype=np.float32)
-    fol_arr = np.array(followup_pil.convert('L'), dtype=np.float32)
+    fol_arr = np.array(followup_resized.convert('L'), dtype=np.float32)
 
     # Difference map (Baseline - Followup)
     # Positive delta means opacity in baseline has disappeared in follow-up (Healing!)
@@ -505,6 +508,7 @@ def run_uncertainty_estimation(img_pil, base_score=0.85, num_passes=15):
         route_class = "success"
 
     return {
+        "raw_image_url": to_base64(img_pil),
         "mean_score": round(float(mean_score * 100), 1),
         "variance": round(float(variance), 6),
         "std_dev": round(float(std_dev), 4),

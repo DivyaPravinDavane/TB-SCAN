@@ -20,13 +20,36 @@ const appState = {
 };
 
 // Initialize on DOM Ready
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   setupDragAndDrop();
   setupPanAndZoom();
   setupFeedbackRadios();
   fetchAnalyticsMetrics();
 
-  // If an active custom uploaded scan exists in sessionStorage, auto-run on it!
+  // 1. First check if a custom radiograph is actively loaded on the server
+  try {
+    const res = await fetch('/api/v1/scans/active-status');
+    const data = await res.json();
+    if (data.status === 'success' && data.has_active_scan && data.image_url) {
+      appState.activeSampleId = null;
+      appState.selectedFile = null;
+      const baseImg = document.getElementById('baseImage');
+      const dualImg = document.getElementById('dualRawImage');
+      if (baseImg) baseImg.src = data.image_url;
+      if (dualImg) dualImg.src = data.image_url;
+      const dropTitle = document.querySelector('.dropzone-title');
+      const dropSub = document.querySelector('.dropzone-sub');
+      if (dropTitle && data.filename) dropTitle.textContent = "Active Radiograph: " + data.filename;
+      if (dropSub) dropSub.textContent = "Ingested & Ready for AI Analysis";
+      syncModuleActiveScanBadge('activeScanBadgeWorkspace', loadBenchmarkSample);
+      triggerInference();
+      return;
+    }
+  } catch (e) {
+    console.warn("Active status check failed:", e);
+  }
+
+  // 2. Next check local browser session storage
   const savedB64 = sessionStorage.getItem('tb_active_scan_b64');
   const savedName = sessionStorage.getItem('tb_active_scan_name');
   syncModuleActiveScanBadge('activeScanBadgeWorkspace', loadBenchmarkSample);
@@ -34,13 +57,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (savedB64 && document.getElementById('baseImage')) {
     appState.activeSampleId = null;
     appState.selectedFile = null;
+    appState.uploadedB64 = savedB64;
     document.getElementById('baseImage').src = savedB64;
     document.getElementById('dualRawImage').src = savedB64;
     const dropTitle = document.querySelector('.dropzone-title');
-    if (dropTitle && savedName) dropTitle.textContent = "Uploaded: " + savedName;
+    if (dropTitle && savedName) dropTitle.textContent = "Active Radiograph: " + savedName;
     triggerInference();
   } else if (document.getElementById('baseImage')) {
-    // Auto-run benchmark positive sample to provide instant rich interactive view
+    // Default initial demonstration with benchmark positive scan
     loadBenchmarkSample('tb_positive');
   }
 });
@@ -99,6 +123,7 @@ function setupDragAndDrop() {
   });
 
   dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
     const dt = e.dataTransfer;
     if (dt.files && dt.files[0]) {
       handleFile(dt.files[0]);
@@ -107,41 +132,55 @@ function setupDragAndDrop() {
 }
 
 function handleFileSelected(event) {
-  if (event.target.files && event.target.files[0]) {
+  if (event.target.files && event.target.files.length > 0) {
     const file = event.target.files[0];
-    event.target.value = '';
     handleFile(file);
+    setTimeout(() => {
+      try { event.target.value = ''; } catch (e) {}
+    }, 1200);
   }
 }
 
 function handleFile(file) {
+  if (!file) return;
   appState.selectedFile = file;
   appState.activeSampleId = null;
 
-  // Local preview & store in sessionStorage for all DL modules
+  const dropTitle = document.querySelector('.dropzone-title');
+  const dropSub = document.querySelector('.dropzone-sub');
+  if (dropTitle) dropTitle.textContent = "Selected: " + file.name;
+  if (dropSub) dropSub.textContent = `Size: ${(file.size / 1024).toFixed(1)} KB • Ingesting for AI Pipeline...`;
+
+  // Instant local display preview
+  try {
+    const blobUrl = URL.createObjectURL(file);
+    if (document.getElementById('baseImage')) document.getElementById('baseImage').src = blobUrl;
+    if (document.getElementById('dualRawImage')) document.getElementById('dualRawImage').src = blobUrl;
+  } catch (e) {
+    console.warn("Blob URL preview error:", e);
+  }
+
+  if (document.getElementById('heatmapImage')) document.getElementById('heatmapImage').style.display = 'none';
+  if (document.getElementById('peakPin')) document.getElementById('peakPin').style.display = 'none';
+  if (document.getElementById('heatmapLegend')) document.getElementById('heatmapLegend').style.display = 'none';
+
+  // Read base64 asynchronously for persistent session storage
   const reader = new FileReader();
   reader.onload = (e) => {
     const b64 = e.target.result;
+    appState.uploadedB64 = b64;
     try {
       sessionStorage.setItem('tb_active_scan_b64', b64);
       sessionStorage.setItem('tb_active_scan_name', file.name);
     } catch (quotaErr) {
-      console.warn("SessionStorage quota reached:", quotaErr);
+      console.warn("SessionStorage quota limit reached (server active cache will be used):", quotaErr);
     }
-
-    if (document.getElementById('baseImage')) document.getElementById('baseImage').src = b64;
-    if (document.getElementById('dualRawImage')) document.getElementById('dualRawImage').src = b64;
-    if (document.getElementById('heatmapImage')) document.getElementById('heatmapImage').style.display = 'none';
-    if (document.getElementById('peakPin')) document.getElementById('peakPin').style.display = 'none';
-    if (document.getElementById('heatmapLegend')) document.getElementById('heatmapLegend').style.display = 'none';
-
-    // Immediately trigger inference pipeline on the newly uploaded image!
-    triggerInference();
+    syncModuleActiveScanBadge('activeScanBadgeWorkspace', loadBenchmarkSample);
   };
   reader.readAsDataURL(file);
 
-  const dropTitle = document.querySelector('.dropzone-title');
-  if (dropTitle) dropTitle.textContent = "Uploaded: " + file.name;
+  // Trigger inference immediately with the selected file
+  triggerInference(file);
 }
 
 /**
@@ -150,7 +189,7 @@ function handleFile(file) {
 function loadBenchmarkSample(sampleId) {
   appState.activeSampleId = sampleId;
   appState.selectedFile = null;
-  // Clear custom uploaded scan from session storage and server when deliberately switching to benchmark
+  appState.uploadedB64 = null;
   sessionStorage.removeItem('tb_active_scan_b64');
   sessionStorage.removeItem('tb_active_scan_name');
   try { fetch('/api/v1/scans/reset-active', { method: 'POST' }); } catch (e) {}
@@ -164,10 +203,14 @@ function loadBenchmarkSample(sampleId) {
   if (document.getElementById('dualRawImage')) document.getElementById('dualRawImage').src = samplePath;
   
   const dropTitle = document.querySelector('.dropzone-title');
+  const dropSub = document.querySelector('.dropzone-sub');
   if (dropTitle) {
     dropTitle.textContent = sampleId === 'tb_positive' 
-      ? 'Sample: Active TB (Apical)' 
-      : 'Sample: Normal CXR';
+      ? 'Benchmark: Active TB (Apical Infiltrate)' 
+      : 'Benchmark: Healthy Normal CXR';
+  }
+  if (dropSub) {
+    dropSub.textContent = 'Pre-calibrated WHO benchmark radiograph';
   }
 
   triggerInference();
@@ -176,22 +219,29 @@ function loadBenchmarkSample(sampleId) {
 /**
  * Trigger ML Inference & Grad-CAM
  */
-async function triggerInference() {
+async function triggerInference(fileOverride = null) {
   const loadingOverlay = document.getElementById('loadingOverlay');
   if (loadingOverlay) loadingOverlay.style.display = 'flex';
 
+  const fileToUse = fileOverride || appState.selectedFile;
   const formData = new FormData();
-  if (appState.selectedFile) {
-    formData.append('image', appState.selectedFile);
-  } else if (appState.activeSampleId) {
-    formData.append('sample_id', appState.activeSampleId);
+
+  if (fileToUse) {
+    formData.append('image', fileToUse);
+    formData.append('filename', fileToUse.name || 'uploaded_scan.jpg');
+  }
+
+  if (appState.uploadedB64) {
+    formData.append('image_b64', appState.uploadedB64);
   } else {
     const savedB64 = sessionStorage.getItem('tb_active_scan_b64');
     if (savedB64) {
       formData.append('image_b64', savedB64);
-    } else {
-      formData.append('sample_id', 'tb_positive');
     }
+  }
+
+  if (appState.activeSampleId) {
+    formData.append('sample_id', appState.activeSampleId);
   }
 
   const ageInput = document.getElementById('inputAge');
@@ -208,15 +258,45 @@ async function triggerInference() {
     const data = await res.json();
     if (data.status === 'success' && data.scan) {
       applyScanResults(data.scan);
+      syncModuleActiveScanBadge('activeScanBadgeWorkspace', loadBenchmarkSample);
     } else {
-      alert("Inference failed: " + (data.message || data.error));
+      console.warn("Inference notification:", data);
+      showInferenceToast(data.message || data.error || "Inference completed with warnings", "warning");
     }
   } catch (err) {
     console.error("Inference Error:", err);
-    alert("Connection error during model inference: " + err.message);
+    showInferenceToast("Connection error during model inference: " + err.message, "error");
   } finally {
     if (loadingOverlay) loadingOverlay.style.display = 'none';
   }
+}
+
+/**
+ * Modern In-App Notification Toast
+ */
+function showInferenceToast(message, type = 'info') {
+  let toastContainer = document.getElementById('tbToastContainer');
+  if (!toastContainer) {
+    toastContainer = document.createElement('div');
+    toastContainer.id = 'tbToastContainer';
+    toastContainer.style.cssText = 'position:fixed; bottom:24px; right:24px; z-index:99999; display:flex; flex-direction:column; gap:10px; max-width:420px; pointer-events:none;';
+    document.body.appendChild(toastContainer);
+  }
+
+  const toast = document.createElement('div');
+  const bg = type === 'error' ? 'rgba(239, 68, 68, 0.95)' : type === 'warning' ? 'rgba(245, 158, 11, 0.95)' : 'rgba(14, 165, 233, 0.95)';
+  const border = type === 'error' ? '#f87171' : type === 'warning' ? '#fbbf24' : '#38bdf8';
+  toast.style.cssText = `background:${bg}; border:1px solid ${border}; color:#ffffff; padding:12px 18px; border-radius:10px; box-shadow:0 10px 25px rgba(0,0,0,0.5); font-size:13px; font-weight:600; line-height:1.4; display:flex; align-items:center; gap:10px; pointer-events:auto; transition:all 0.3s ease;`;
+  toast.innerHTML = `
+    <span style="font-size:16px;">${type === 'error' ? '⚠️' : type === 'warning' ? 'ℹ️' : '✓'}</span>
+    <span>${message}</span>
+  `;
+  toastContainer.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(10px)';
+    setTimeout(() => toast.remove(), 350);
+  }, 4000);
 }
 
 /**
@@ -685,10 +765,14 @@ document.addEventListener('click', (e) => {
  */
 function getActiveScanFormData(fallbackSampleId = null) {
   const formData = new FormData();
-  const savedB64 = sessionStorage.getItem('tb_active_scan_b64');
+  const savedB64 = sessionStorage.getItem('tb_active_scan_b64') || appState.uploadedB64;
   if (savedB64) {
     formData.append('image_b64', savedB64);
-  } else if (fallbackSampleId) {
+  } else if (appState.selectedFile) {
+    formData.append('image', appState.selectedFile);
+  }
+  const savedName = sessionStorage.getItem('tb_active_scan_name');
+  if (fallbackSampleId && !savedB64 && !appState.selectedFile && !savedName) {
     formData.append('sample_id', fallbackSampleId);
   }
   return formData;
@@ -699,9 +783,12 @@ function getActiveScanFormData(fallbackSampleId = null) {
  */
 function handleModuleFileUpload(file, onLoadedCallback) {
   if (!file) return;
+  appState.selectedFile = file;
+  appState.activeSampleId = null;
   const reader = new FileReader();
   reader.onload = (e) => {
     const b64 = e.target.result;
+    appState.uploadedB64 = b64;
     try {
       sessionStorage.setItem('tb_active_scan_b64', b64);
       sessionStorage.setItem('tb_active_scan_name', file.name);

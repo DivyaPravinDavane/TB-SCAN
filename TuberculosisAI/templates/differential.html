@@ -134,74 +134,80 @@
 
   <script src="/static/js/platform.js"></script>
   <script>
+    function renderDiffUI(r) {
+      if (!r) return;
+      document.getElementById('diffPrimaryBadge').textContent = r.primary_diagnosis;
+      document.getElementById('diffPrimaryBadge').className = 'risk-badge ' + (r.hallmarks && r.hallmarks[0].positive ? 'high' : 'normal');
+      document.getElementById('diffPrimaryProb').textContent = r.primary_confidence;
+      document.getElementById('diffRationale').textContent = r.differential_notes;
+      if (r.raw_image_url) {
+        document.getElementById('diffRawImg').src = r.raw_image_url;
+      }
+      syncModuleActiveScanBadge('activeScanBadgeDiff', runDiff);
+
+      // Render Hallmarks
+      const hList = document.getElementById('hallmarksList');
+      hList.innerHTML = '';
+      (r.hallmarks || []).forEach(h => {
+        const barColor = h.positive ? '#ef4444' : '#00e5ff';
+        const item = document.createElement('div');
+        item.style.background = 'rgba(255, 255, 255, 0.03)';
+        item.style.padding = '10px 14px';
+        item.style.borderRadius = '8px';
+        item.style.border = '1px solid var(--border-color)';
+        item.innerHTML = `
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span style="font-size:12.5px; font-weight:700; color:#fff;">${h.name}</span>
+            <span style="font-size:12px; font-weight:800; color:${barColor};">${h.score}%</span>
+          </div>
+          <div style="width:100%; height:6px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; margin-bottom:6px;">
+            <div style="width:${h.score}%; height:100%; background:${barColor}; border-radius:3px;"></div>
+          </div>
+          <div style="font-size:11px; color:#94a3b8;">${h.significance}</div>
+        `;
+        hList.appendChild(item);
+      });
+
+      // Render Differentials
+      const dList = document.getElementById('differentialsList');
+      dList.innerHTML = '';
+      (r.differentials || []).forEach(d => {
+        const isHighlight = d.highlight;
+        const item = document.createElement('div');
+        item.className = 'finding-item';
+        if (isHighlight) {
+          item.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+          item.style.background = 'rgba(239, 68, 68, 0.08)';
+        }
+        item.innerHTML = `
+          <div class="finding-details" style="width:100%;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span class="finding-label" style="${isHighlight ? 'color:#f87171; font-weight:700;' : ''}">${d.diagnosis}</span>
+              <span class="finding-val" style="${isHighlight ? 'color:#fca5a5; font-size:13.5px;' : ''}">${d.prob}%</span>
+            </div>
+            <div style="width:100%; height:4px; background:rgba(255,255,255,0.06); border-radius:2px; margin-top:5px; overflow:hidden;">
+              <div style="width:${d.prob}%; height:100%; background:${isHighlight ? '#ef4444' : '#64748b'};"></div>
+            </div>
+          </div>
+        `;
+        dList.appendChild(item);
+      });
+    }
+
     async function runDiff(sampleId) {
       let formData;
       if (sampleId) {
         formData = new FormData();
         formData.append('sample_id', sampleId);
       } else {
-        formData = getActiveScanFormData('tb_positive');
+        formData = getActiveScanFormData();
       }
 
       try {
         const res = await fetch('/api/v1/dl/differential', { method: 'POST', body: formData });
         const data = await res.json();
         if (data.status === 'success') {
-          const r = data.result;
-          document.getElementById('diffPrimaryBadge').textContent = r.primary_diagnosis;
-          document.getElementById('diffPrimaryBadge').className = 'risk-badge ' + (r.hallmarks[0].positive ? 'high' : 'normal');
-          document.getElementById('diffPrimaryProb').textContent = r.primary_confidence;
-          document.getElementById('diffRationale').textContent = r.differential_notes;
-          document.getElementById('diffRawImg').src = r.raw_image_url || '/static/samples/sample_tb_positive.jpg';
-          syncModuleActiveScanBadge('activeScanBadgeDiff', runDiff);
-
-          // Render Hallmarks
-          const hList = document.getElementById('hallmarksList');
-          hList.innerHTML = '';
-          r.hallmarks.forEach(h => {
-            const barColor = h.positive ? '#ef4444' : '#00e5ff';
-            const item = document.createElement('div');
-            item.style.background = 'rgba(255, 255, 255, 0.03)';
-            item.style.padding = '10px 14px';
-            item.style.borderRadius = '8px';
-            item.style.border = '1px solid var(--border-color)';
-            item.innerHTML = `
-              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                <span style="font-size:12.5px; font-weight:700; color:#fff;">${h.name}</span>
-                <span style="font-size:12px; font-weight:800; color:${barColor};">${h.score}%</span>
-              </div>
-              <div style="width:100%; height:6px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden; margin-bottom:6px;">
-                <div style="width:${h.score}%; height:100%; background:${barColor}; border-radius:3px;"></div>
-              </div>
-              <div style="font-size:11px; color:#94a3b8;">${h.significance}</div>
-            `;
-            hList.appendChild(item);
-          });
-
-          // Render Differentials
-          const dList = document.getElementById('differentialsList');
-          dList.innerHTML = '';
-          r.differentials.forEach(d => {
-            const isHighlight = d.highlight;
-            const item = document.createElement('div');
-            item.className = 'finding-item';
-            if (isHighlight) {
-              item.style.border = '1px solid rgba(239, 68, 68, 0.4)';
-              item.style.background = 'rgba(239, 68, 68, 0.08)';
-            }
-            item.innerHTML = `
-              <div class="finding-details" style="width:100%;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <span class="finding-label" style="${isHighlight ? 'color:#f87171; font-weight:700;' : ''}">${d.diagnosis}</span>
-                  <span class="finding-val" style="${isHighlight ? 'color:#fca5a5; font-size:13.5px;' : ''}">${d.prob}%</span>
-                </div>
-                <div style="width:100%; height:4px; background:rgba(255,255,255,0.06); border-radius:2px; margin-top:5px; overflow:hidden;">
-                  <div style="width:${d.prob}%; height:100%; background:${isHighlight ? '#ef4444' : '#64748b'};"></div>
-                </div>
-              </div>
-            `;
-            dList.appendChild(item);
-          });
+          renderDiffUI(data.result);
         }
       } catch (e) {
         console.error(e);
@@ -209,18 +215,22 @@
     }
 
     async function handleDiffFile(event) {
-      if (event.target.files && event.target.files[0]) {
+      if (event.target.files && event.target.files.length > 0) {
         const file = event.target.files[0];
-        event.target.value = '';
         handleModuleFileUpload(file, async (fileObj, b64) => {
           const formData = new FormData();
           formData.append('image', fileObj);
+          formData.append('image_b64', b64);
+          formData.append('filename', fileObj.name);
           const res = await fetch('/api/v1/dl/differential', { method: 'POST', body: formData });
           const data = await res.json();
           if (data.status === 'success') {
-            runDiff();
+            renderDiffUI(data.result);
           }
         });
+        setTimeout(() => {
+          try { event.target.value = ''; } catch(e) {}
+        }, 1200);
       }
     }
 

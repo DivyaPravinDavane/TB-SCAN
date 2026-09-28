@@ -168,7 +168,7 @@
         formData = new FormData();
         formData.append('mode', mode);
       } else {
-        formData = getActiveScanFormData('tb_positive');
+        formData = getActiveScanFormData();
       }
 
       const passesInput = document.getElementById('inputPasses');
@@ -216,18 +216,22 @@
     }
 
     async function handleUncFile(event) {
-      if (event.target.files && event.target.files[0]) {
+      if (event.target.files && event.target.files.length > 0) {
         const file = event.target.files[0];
-        event.target.value = '';
         handleModuleFileUpload(file, async (fileObj, b64) => {
           const formData = new FormData();
           formData.append('image', fileObj);
+          formData.append('image_b64', b64);
+          formData.append('filename', fileObj.name);
           const res = await fetch('/api/v1/dl/uncertainty', { method: 'POST', body: formData });
           const data = await res.json();
           if (data.status === 'success') {
             runUncertainty();
           }
         });
+        setTimeout(() => {
+          try { event.target.value = ''; } catch(e) {}
+        }, 1200);
       }
     }
 

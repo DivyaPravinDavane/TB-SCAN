@@ -605,3 +605,21 @@ function closeProtocolModal() {
   if (m) m.style.display = 'none';
 }
 
+/**
+ * Quick Modules Flyout Menu Handler
+ */
+function toggleModulesMenu() {
+  const flyout = document.getElementById('modulesFlyout');
+  if (!flyout) return;
+  const isShown = flyout.style.display === 'block';
+  flyout.style.display = isShown ? 'none' : 'block';
+}
+
+document.addEventListener('click', (e) => {
+  const wrapper = document.querySelector('.modules-dropdown-wrapper');
+  const flyout = document.getElementById('modulesFlyout');
+  if (wrapper && flyout && !wrapper.contains(e.target)) {
+    flyout.style.display = 'none';
+  }
+});
+

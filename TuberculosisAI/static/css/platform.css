@@ -507,24 +507,34 @@ body.theme-dark {
 
 /* TIER 2: CLINICAL ROUTER & MODULES RIBBON */
 .header-router-bar {
-  height: 44px;
-  background: rgba(4, 7, 15, 0.85);
-  border-top: 1px solid rgba(255, 255, 255, 0.03);
+  height: 42px;
+  background: rgba(4, 7, 15, 0.9);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
   display: flex;
   align-items: center;
-  padding: 0 24px;
+  padding: 0 16px;
   overflow-x: auto;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(56, 189, 248, 0.25) transparent;
 }
 
 .header-router-bar::-webkit-scrollbar {
-  display: none;
+  height: 3px;
+}
+
+.header-router-bar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.header-router-bar::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.3);
+  border-radius: 4px;
 }
 
 .router-track {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   width: 100%;
   white-space: nowrap;
 }
@@ -532,27 +542,28 @@ body.theme-dark {
 .router-link {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: 6px;
+  padding: 4px 8px;
   border-radius: var(--radius-full);
   color: #94a3b8;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   text-decoration: none;
   border: 1px solid transparent;
+  flex-shrink: 0;
   transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .router-link:hover {
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .router-link.active {
   color: #ffffff;
-  background: rgba(0, 229, 255, 0.12);
-  border: 1px solid rgba(0, 229, 255, 0.35);
-  box-shadow: 0 2px 12px rgba(0, 229, 255, 0.12);
+  background: rgba(0, 229, 255, 0.14);
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  box-shadow: 0 2px 10px rgba(0, 229, 255, 0.15);
 }
 
 .router-link.active svg {
@@ -561,11 +572,11 @@ body.theme-dark {
 
 .module-number {
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 8.5px;
   font-weight: 800;
   background: rgba(255, 255, 255, 0.08);
   color: #94a3b8;
-  padding: 1px 5px;
+  padding: 1px 4px;
   border-radius: 3px;
 }
 
@@ -576,17 +587,92 @@ body.theme-dark {
 
 .router-separator {
   width: 1px;
-  height: 20px;
+  height: 18px;
   background: rgba(255, 255, 255, 0.1);
-  margin: 0 6px;
+  margin: 0 4px;
+  flex-shrink: 0;
 }
 
-.router-group-tag {
+/* QUICK ALL-MODULES FLYOUT MENU */
+.modules-dropdown-wrapper {
+  position: relative;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.modules-menu-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.modules-menu-trigger:hover {
+  background: rgba(56, 189, 248, 0.2);
+  color: #fff;
+  border-color: var(--accent-cyan);
+}
+
+.modules-flyout-panel {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  width: 380px;
+  background: #090e1c;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: var(--radius-md);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.9);
+  padding: 12px;
+  z-index: 1100;
+  animation: dropdownFadeIn 0.18s ease-out;
+}
+
+.flyout-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.flyout-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+
+.flyout-card:hover {
+  background: rgba(0, 229, 255, 0.1);
+  border-color: rgba(0, 229, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.flyout-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.flyout-card-desc {
   font-size: 10px;
-  font-weight: 800;
-  color: #475569;
-  letter-spacing: 0.8px;
-  margin: 0 6px;
+  color: #64748b;
+  margin-top: 1px;
 }
 
 /* MODAL CARDS */

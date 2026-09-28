@@ -129,101 +129,146 @@
     <div class="router-track">
       <!-- Primary Diagnostic Workspace -->
       <a href="/" class="router-link {% if active_page == 'workspace' %}active{% endif %}" title="Primary CXR Classification, Grad-CAM Overlay & Physician Sign-Off">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="3" width="7" height="7"/>
           <rect x="14" y="3" width="7" height="7"/>
           <rect x="14" y="14" width="7" height="7"/>
           <rect x="3" y="14" width="7" height="7"/>
         </svg>
-        <span class="router-label">Diagnostic Workspace</span>
+        <span class="router-label">Workspace</span>
       </a>
 
       <div class="router-separator"></div>
 
-      <!-- Group Label -->
-      <span class="router-group-tag">DL PIPELINE MODULES:</span>
-
       <!-- Module 1: Input QA -->
-      <a href="/input-qa" class="router-link {% if active_page == 'input_qa' %}active{% endif %}" title="Input Validation, IQA Quality Scoring & Metal Hardware Segmentation">
+      <a href="/input-qa" class="router-link {% if active_page == 'input_qa' %}active{% endif %}" title="Module 1: View Check, Contrast Exposure Scoring & Metal Hardware Segmentation">
         <span class="module-number">01</span>
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           <path d="m9 12 2 2 4-4"/>
         </svg>
-        <span class="router-label">Input QA & Artifacts</span>
+        <span class="router-label">Input QA</span>
       </a>
 
       <!-- Module 2: Segmentation -->
-      <a href="/segmentation" class="router-link {% if active_page == 'segmentation' %}active{% endif %}" title="U-Net Lung Field Masking & Simulated Bone Shadow Suppression">
+      <a href="/segmentation" class="router-link {% if active_page == 'segmentation' %}active{% endif %}" title="Module 2: U-Net Lung Field Masking & Simulated Bone Shadow Suppression">
         <span class="module-number">02</span>
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="10"/>
           <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
           <path d="M2 12h20"/>
         </svg>
-        <span class="router-label">Lung Segmentation</span>
+        <span class="router-label">Segmentation</span>
       </a>
 
       <!-- Module 3: Differential -->
-      <a href="/differential" class="router-link {% if active_page == 'differential' %}active{% endif %}" title="Multi-Label TB Hallmarks (Cavitary, Infiltrates) & 6-Way Differential Classifier">
+      <a href="/differential" class="router-link {% if active_page == 'differential' %}active{% endif %}" title="Module 3: Multi-Label TB Hallmarks (Cavitary, Infiltrates) & 6-Way Differential Classifier">
         <span class="module-number">03</span>
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="20" x2="18" y2="10"/>
           <line x1="12" y1="20" x2="12" y2="4"/>
           <line x1="6" y1="20" x2="6" y2="14"/>
         </svg>
-        <span class="router-label">Differential Diagnostics</span>
+        <span class="router-label">Differential</span>
       </a>
 
       <!-- Module 4: Explainability -->
-      <a href="/explainability" class="router-link {% if active_page == 'explainability' %}active{% endif %}" title="Grad-CAM++ Pixel Attributions & YOLOv9 Lesion Bounding Boxes">
+      <a href="/explainability" class="router-link {% if active_page == 'explainability' %}active{% endif %}" title="Module 4: Grad-CAM++ Pixel Attributions & YOLOv9 Lesion Bounding Boxes">
         <span class="module-number">04</span>
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="3"/>
           <path d="M3 12h3m12 0h3M12 3v3m0 12v3"/>
         </svg>
-        <span class="router-label">Explainable AI (XAI)</span>
+        <span class="router-label">XAI Heatmap</span>
       </a>
 
       <!-- Module 5: DOTS Tracking -->
-      <a href="/longitudinal" class="router-link {% if active_page == 'longitudinal' %}active{% endif %}" title="Siamese Difference Registration & Treatment Response Delta Map">
+      <a href="/longitudinal" class="router-link {% if active_page == 'longitudinal' %}active{% endif %}" title="Module 5: Siamese Difference Registration & Treatment Response Delta Map">
         <span class="module-number">05</span>
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="23 4 23 10 17 10"/>
           <polyline points="1 20 1 14 7 14"/>
           <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
         </svg>
-        <span class="router-label">DOTS Treatment Tracking</span>
+        <span class="router-label">DOTS Tracking</span>
       </a>
 
       <!-- Module 6: Uncertainty -->
-      <a href="/uncertainty" class="router-link {% if active_page == 'uncertainty' %}active{% endif %}" title="Monte Carlo Dropout 15-Pass Epistemic Uncertainty & Automated Triage">
+      <a href="/uncertainty" class="router-link {% if active_page == 'uncertainty' %}active{% endif %}" title="Module 6: Monte Carlo Dropout 15-Pass Epistemic Uncertainty & Automated Triage">
         <span class="module-number">06</span>
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
           <line x1="12" y1="9" x2="12" y2="13"/>
           <line x1="12" y1="17" x2="12.01" y2="17"/>
         </svg>
-        <span class="router-label">Uncertainty & Triage</span>
+        <span class="router-label">Uncertainty</span>
       </a>
 
       <div class="router-separator"></div>
 
       <!-- Lung Improvements & Treatment Analytics -->
       <a href="/treatment-analytics" class="router-link {% if active_page == 'treatment_analytics' %}active{% endif %}" title="Quantitative Lung Opacity Regression, Cavity Remodeling & DOTS Analytics">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M18 20V10M12 20V4M6 20v-6"/>
         </svg>
-        <span class="router-label">Treatment & Lung Analytics</span>
+        <span class="router-label">Lung Recovery</span>
       </a>
 
       <!-- Public Health Surveillance Registry -->
       <a href="/analytics" class="router-link {% if active_page == 'analytics' %}active{% endif %}" title="Screening Epidemiology KPIs, Model Accuracy Metrics & Historical Audit Log">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
         </svg>
-        <span class="router-label">Surveillance Registry</span>
+        <span class="router-label">Registry</span>
       </a>
+
+      <!-- Quick All Modules Flyout Switcher -->
+      <div class="modules-dropdown-wrapper">
+        <button class="modules-menu-trigger" onclick="toggleModulesMenu()" title="Quick Switch to Any Clinical Module">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          <span>All Modules ▾</span>
+        </button>
+        <div class="modules-flyout-panel" id="modulesFlyout" style="display:none;">
+          <div class="flyout-grid">
+            <a href="/" class="flyout-card">
+              <div class="flyout-card-title">❖ Workspace</div>
+              <div class="flyout-card-desc">Primary CXR PACS Viewer & Sign-Off</div>
+            </a>
+            <a href="/input-qa" class="flyout-card">
+              <div class="flyout-card-title">01. Input QA</div>
+              <div class="flyout-card-desc">MobileNetV3 Modality & Metal Filter</div>
+            </a>
+            <a href="/segmentation" class="flyout-card">
+              <div class="flyout-card-title">02. Segmentation</div>
+              <div class="flyout-card-desc">U-Net Mask & Bone Suppression</div>
+            </a>
+            <a href="/differential" class="flyout-card">
+              <div class="flyout-card-title">03. Differential</div>
+              <div class="flyout-card-desc">TB Hallmarks & 6-Way Differential</div>
+            </a>
+            <a href="/explainability" class="flyout-card">
+              <div class="flyout-card-title">04. XAI Heatmaps</div>
+              <div class="flyout-card-desc">Grad-CAM++ & YOLO Bounding Boxes</div>
+            </a>
+            <a href="/longitudinal" class="flyout-card">
+              <div class="flyout-card-title">05. DOTS Tracking</div>
+              <div class="flyout-card-desc">Siamese Healing Delta Map</div>
+            </a>
+            <a href="/uncertainty" class="flyout-card">
+              <div class="flyout-card-title">06. Uncertainty</div>
+              <div class="flyout-card-desc">Monte Carlo Dropout 15x Passes</div>
+            </a>
+            <a href="/treatment-analytics" class="flyout-card">
+              <div class="flyout-card-title">📈 Lung Recovery</div>
+              <div class="flyout-card-desc">Parenchymal & Zonal Clearance</div>
+            </a>
+            <a href="/analytics" class="flyout-card" style="grid-column: span 2;">
+              <div class="flyout-card-title">📊 Surveillance Registry</div>
+              <div class="flyout-card-desc">Public Health Case-Finding & CSV Exports</div>
+            </a>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </header>
